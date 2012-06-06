@@ -38,19 +38,29 @@
 #include "ch.h"
 
 #define MAX_FILLER 11
+#define FLOAT_PRECISION 100000
 
-static char *ltoa(char *p, long num, unsigned radix) {
+static char *long_to_string_with_divisor(char *p, long num, unsigned radix, long divisor) {
   int i;
   char *q;
+  long l, ll;
+
+  l = num;
+  if (divisor == 0) {
+    ll = num;
+  } else {
+    ll = divisor;
+  }
 
   q = p + MAX_FILLER;
   do {
-    i = (int)(num % radix);
+    i = (int)(l % radix);
     i += '0';
     if (i > '9')
       i += 'A' - '0' - 10;
     *--q = i;
-  } while ((num /= radix) != 0);
+    l /= radix;
+  } while ((ll /= radix) != 0);
 
   i = (int)(p + MAX_FILLER - q);
   do
@@ -58,6 +68,22 @@ static char *ltoa(char *p, long num, unsigned radix) {
   while (--i);
 
   return p;
+}
+
+static char *ltoa(char *p, long num, unsigned radix) {
+  return long_to_string_with_divisor(p, num, radix, 0);
+}
+
+static char *ftoa(char *p, double num) {
+  long l;
+  unsigned long precision = FLOAT_PRECISION;
+
+  l = num;
+  p = long_to_string_with_divisor(p, l, 10, 0);
+  *p++ = '.';
+
+  l = (num - l) * precision;
+  return long_to_string_with_divisor(p, l, 10, precision / 10);
 }
 
 /**
@@ -90,6 +116,7 @@ void chprintf(BaseChannel *chp, const char *fmt, ...) {
   int i, precision, width;
   bool_t is_long, left_align;
   long l;
+  volatile float f;
 
   va_start(ap, fmt);
   while (TRUE) {
@@ -174,6 +201,14 @@ void chprintf(BaseChannel *chp, const char *fmt, ...) {
         l = -l;
       }
       p = ltoa(p, l, 10);
+      break;
+    case 'f':
+      f = (float) va_arg(ap, double);
+      if (f < 0) {
+        *p++ = '-';
+        f = -f;
+      }
+      p = ftoa(p, f);
       break;
     case 'X':
     case 'x':
