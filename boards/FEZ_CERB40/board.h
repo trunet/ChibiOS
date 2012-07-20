@@ -161,7 +161,7 @@
                                      PIN_MODE_ALTERNATE(GPIOB_SCL) |       \
                                      PIN_MODE_ALTERNATE(GPIOB_SDA) |       \
                                      PIN_MODE_INPUT(8) |                   \
-                                     PIN_MODE_INTPU(9) |                   \
+                                     PIN_MODE_INPUT(9) |                   \
                                      PIN_MODE_ALTERNATE(GPIOB_TIM2_CH3) |  \
                                      PIN_MODE_ALTERNATE(GPIOB_TIM2_CH4) |  \
                                      PIN_MODE_INPUT(12) |                  \
