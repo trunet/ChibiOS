@@ -186,6 +186,7 @@
 /* CAN attributes.*/
 #define STM32_HAS_CAN1          FALSE
 #define STM32_HAS_CAN2          FALSE
+#define STM32_CAN_MAX_FILTERS   0
 
 /* DAC attributes.*/
 #define STM32_HAS_DAC           TRUE
@@ -237,7 +238,7 @@
 #define STM32_RTC_IS_CALENDAR   TRUE
 
 /* SDIO attributes.*/
-#define STM32_HAS_SDIO          FALSE
+#define STM32_HAS_SDIO          TRUE
 
 /* SPI attributes.*/
 #define STM32_HAS_SPI1          TRUE
@@ -1043,7 +1044,8 @@ typedef uint32_t halrtcnt_t;
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-/* STM32 DMA and RCC helpers.*/
+/* STM32 ISR, DMA and RCC helpers.*/
+#include "stm32_isr.h"
 #include "stm32_dma.h"
 #include "stm32_rcc.h"
 

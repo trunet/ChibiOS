@@ -52,34 +52,26 @@
  * queue-level function or macro.
  */
 
-static size_t writes(void *ip, const uint8_t *bp, size_t n) {
+static size_t write(void *ip, const uint8_t *bp, size_t n) {
 
   return chOQWriteTimeout(&((SerialDriver *)ip)->oqueue, bp,
                           n, TIME_INFINITE);
 }
 
-static size_t reads(void *ip, uint8_t *bp, size_t n) {
+static size_t read(void *ip, uint8_t *bp, size_t n) {
 
   return chIQReadTimeout(&((SerialDriver *)ip)->iqueue, bp,
                          n, TIME_INFINITE);
 }
 
-static bool_t putwouldblock(void *ip) {
-  bool_t b;
+static msg_t put(void *ip, uint8_t b) {
 
-  chSysLock();
-  b = chOQIsFullI(&((SerialDriver *)ip)->oqueue);
-  chSysUnlock();
-  return b;
+  return chOQPutTimeout(&((SerialDriver *)ip)->oqueue, b, TIME_INFINITE);
 }
 
-static bool_t getwouldblock(void *ip) {
-  bool_t b;
+static msg_t get(void *ip) {
 
-  chSysLock();
-  b = chIQIsEmptyI(&((SerialDriver *)ip)->iqueue);
-  chSysUnlock();
-  return b;
+  return chIQGetTimeout(&((SerialDriver *)ip)->iqueue, TIME_INFINITE);
 }
 
 static msg_t putt(void *ip, uint8_t b, systime_t timeout) {
@@ -107,7 +99,7 @@ static chnflags_t getflags(void *ip) {
 }
 
 static const struct SerialDriverVMT vmt = {
-  writes, reads, putwouldblock, getwouldblock,
+  write, read, put, get,
   putt, gett, writet, readt,
   getflags
 };
@@ -149,8 +141,8 @@ void sdObjectInit(SerialDriver *sdp, qnotify_t inotify, qnotify_t onotify) {
   chEvtInit(&sdp->event);
   sdp->flags = CHN_NO_ERROR;
   sdp->state = SD_STOP;
-  chIQInit(&sdp->iqueue, sdp->ib, SERIAL_BUFFERS_SIZE, inotify);
-  chOQInit(&sdp->oqueue, sdp->ob, SERIAL_BUFFERS_SIZE, onotify);
+  chIQInit(&sdp->iqueue, sdp->ib, SERIAL_BUFFERS_SIZE, inotify, sdp);
+  chOQInit(&sdp->oqueue, sdp->ob, SERIAL_BUFFERS_SIZE, onotify, sdp);
 }
 
 /**

@@ -19,7 +19,7 @@
 */
 
 /**
- * @defgroup TM Time Measurement Driver.
+ * @defgroup TM Time Measurement Driver
  *
  * @brief   Time Measurement unit.
  * @details This module implements a time measurement mechanism able to

@@ -60,6 +60,54 @@
 #define STM32_RTCSEL                        STM32_RTCSEL_LSI
 
 /*
+ * ADC driver system settings.
+ */
+#define STM32_ADC_USE_ADC1                  TRUE
+#define STM32_ADC_ADC1_DMA_PRIORITY         2
+#define STM32_ADC_IRQ_PRIORITY              2
+#define STM32_ADC_ADC1_DMA_IRQ_PRIORITY     2
+
+/*
+ * EXT driver system settings.
+ */
+#define STM32_EXT_EXTI0_1_IRQ_PRIORITY      3
+#define STM32_EXT_EXTI2_3_IRQ_PRIORITY      3
+#define STM32_EXT_EXTI4_15_IRQ_PRIORITY     3
+#define STM32_EXT_EXTI16_IRQ_PRIORITY       3
+#define STM32_EXT_EXTI17_IRQ_PRIORITY       3
+
+/*
+ * GPT driver system settings.
+ */
+#define STM32_GPT_USE_TIM1                  FALSE
+#define STM32_GPT_USE_TIM2                  TRUE
+#define STM32_GPT_USE_TIM3                  TRUE
+#define STM32_GPT_TIM1_IRQ_PRIORITY         2
+#define STM32_GPT_TIM2_IRQ_PRIORITY         2
+#define STM32_GPT_TIM3_IRQ_PRIORITY         2
+
+/*
+ * ICU driver system settings.
+ */
+#define STM32_ICU_USE_TIM1                  FALSE
+#define STM32_ICU_USE_TIM2                  FALSE
+#define STM32_ICU_USE_TIM3                  TRUE
+#define STM32_ICU_TIM1_IRQ_PRIORITY         3
+#define STM32_ICU_TIM2_IRQ_PRIORITY         3
+#define STM32_ICU_TIM3_IRQ_PRIORITY         3
+
+/*
+ * PWM driver system settings.
+ */
+#define STM32_PWM_USE_ADVANCED              FALSE
+#define STM32_PWM_USE_TIM1                  FALSE
+#define STM32_PWM_USE_TIM2                  TRUE
+#define STM32_PWM_USE_TIM3                  FALSE
+#define STM32_PWM_TIM1_IRQ_PRIORITY         3
+#define STM32_PWM_TIM2_IRQ_PRIORITY         3
+#define STM32_PWM_TIM3_IRQ_PRIORITY         3
+
+/*
  * SERIAL driver system settings.
  */
 #define STM32_SERIAL_USE_USART1             TRUE
@@ -82,3 +130,18 @@
 #define STM32_SPI_SPI1_IRQ_PRIORITY         2
 #define STM32_SPI_SPI2_IRQ_PRIORITY         2
 #define STM32_SPI_DMA_ERROR_HOOK(spip)      chSysHalt()
+
+/*
+ * UART driver system settings.
+ */
+#define STM32_UART_USE_USART1               TRUE
+#define STM32_UART_USE_USART2               TRUE
+#define STM32_UART_USART1_IRQ_PRIORITY      3
+#define STM32_UART_USART2_IRQ_PRIORITY      3
+#define STM32_UART_USART1_DMA_PRIORITY      0
+#define STM32_UART_USART2_DMA_PRIORITY      0
+#define STM32_UART_USART1_RX_DMA_STREAM     STM32_DMA_STREAM_ID(1, 3)
+#define STM32_UART_USART1_TX_DMA_STREAM     STM32_DMA_STREAM_ID(1, 2)
+#define STM32_UART_USART2_RX_DMA_STREAM     STM32_DMA_STREAM_ID(1, 5)
+#define STM32_UART_USART2_TX_DMA_STREAM     STM32_DMA_STREAM_ID(1, 4)
+#define STM32_UART_DMA_ERROR_HOOK(uartp)    chSysHalt()

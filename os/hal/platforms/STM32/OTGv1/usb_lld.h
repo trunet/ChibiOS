@@ -64,7 +64,7 @@
  * @brief   OTG1 interrupt priority level setting.
  */
 #if !defined(STM32_USB_OTG1_IRQ_PRIORITY) || defined(__DOXYGEN__)
-#define STM32_USB_OTG1_IRQ_PRIORITY         6
+#define STM32_USB_OTG1_IRQ_PRIORITY         14
 #endif
 
 /**
@@ -85,6 +85,11 @@
 
 #if !STM32_USB_USE_OTG1
 #error "USB driver activated but no USB peripheral assigned"
+#endif
+
+#if STM32_USB_USE_OTG1 &&                                                \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_USB_OTG1_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to OTG1"
 #endif
 
 #if (STM32_USB_OTG1_RX_FIFO_SIZE & 3) != 0
@@ -108,13 +113,13 @@
 /*===========================================================================*/
 
 /**
- * @brief   Type of an endpoint state structure.
+ * @brief   Type of an IN endpoint state structure.
  */
 typedef struct {
   /**
-   * @brief   Pointer to the transmission buffer.
+   * @brief   Buffer mode, queue or linear.
    */
-  const uint8_t                 *txbuf;
+  bool_t                        txqueued;
   /**
    * @brief   Requested transmit transfer size.
    */
@@ -123,20 +128,30 @@ typedef struct {
    * @brief   Transmitted bytes so far.
    */
   size_t                        txcnt;
+  union {
+    struct {
+      /**
+       * @brief   Pointer to the transmission linear buffer.
+       */
+      const uint8_t             *txbuf;
+    } linear;
+    struct {
+      /**
+       * @brief   Pointer to the output queue.
+       */
+      OutputQueue               *txqueue;
+    } queue;
+  } mode;
 } USBInEndpointState;
 
 /**
- * @brief   Type of an endpoint state structure.
+ * @brief   Type of an OUT endpoint state structure.
  */
 typedef struct {
   /**
-   * @brief   Number of packets to receive.
+   * @brief   Buffer mode, queue or linear.
    */
-  uint16_t                      rxpkts;
-  /**
-   * @brief   Pointer to the receive buffer.
-   */
-  uint8_t                       *rxbuf;
+  bool_t                        rxqueued;
   /**
    * @brief   Requested receive transfer size.
    */
@@ -145,6 +160,20 @@ typedef struct {
    * @brief   Received bytes so far.
    */
   size_t                        rxcnt;
+  union {
+    struct {
+      /**
+       * @brief   Pointer to the receive linear buffer.
+       */
+      uint8_t                   *rxbuf;
+    } linear;
+    struct {
+      /**
+       * @brief   Pointer to the input queue.
+       */
+      InputQueue               *rxqueue;
+    } queue;
+  } mode;
 } USBOutEndpointState;
 
 /**
@@ -193,16 +222,12 @@ typedef struct {
   uint16_t                      out_maxsize;
   /**
    * @brief   @p USBEndpointState associated to the IN endpoint.
-   * @details This structure maintains the state of the IN endpoint when
-   *          the endpoint is not in packet mode. Endpoints configured in
-   *          packet mode must set this field to @p NULL.
+   * @details This structure maintains the state of the IN endpoint.
    */
   USBInEndpointState            *in_state;
   /**
    * @brief   @p USBEndpointState associated to the OUT endpoint.
-   * @details This structure maintains the state of the OUT endpoint when
-   *          the endpoint is not in packet mode. Endpoints configured in
-   *          packet mode must set this field to @p NULL.
+   * @details This structure maintains the state of the OUT endpoint.
    */
   USBOutEndpointState           *out_state;
   /* End of the mandatory fields.*/
@@ -317,15 +342,6 @@ struct USBDriver {
 /*===========================================================================*/
 
 /**
- * @brief   Fetches a 16 bits word value from an USB message.
- *
- * @param[in] p         pointer to the 16 bits word
- *
- * @notapi
- */
-#define usb_lld_fetch_word(p) (*(uint16_t *)(p))
-
-/**
  * @brief   Returns the exact size of a receive transaction.
  * @details The received size can be different from the size specified in
  *          @p usbStartReceiveI() because the last packet could have a size
@@ -377,14 +393,8 @@ extern "C" {
   usbepstatus_t usb_lld_get_status_in(USBDriver *usbp, usbep_t ep);
   usbepstatus_t usb_lld_get_status_out(USBDriver *usbp, usbep_t ep);
   void usb_lld_read_setup(USBDriver *usbp, usbep_t ep, uint8_t *buf);
-  size_t usb_lld_read_packet_buffer(USBDriver *usbp, usbep_t ep,
-                                    uint8_t *buf, size_t n);
-  void usb_lld_write_packet_buffer(USBDriver *usbp, usbep_t ep,
-                                   const uint8_t *buf, size_t n);
-  void usb_lld_prepare_receive(USBDriver *usbp, usbep_t ep,
-                               uint8_t *buf, size_t n);
-  void usb_lld_prepare_transmit(USBDriver *usbp, usbep_t ep,
-                                const uint8_t *buf, size_t n);
+  void usb_lld_prepare_receive(USBDriver *usbp, usbep_t ep);
+  void usb_lld_prepare_transmit(USBDriver *usbp, usbep_t ep);
   void usb_lld_start_out(USBDriver *usbp, usbep_t ep);
   void usb_lld_start_in(USBDriver *usbp, usbep_t ep);
   void usb_lld_stall_out(USBDriver *usbp, usbep_t ep);

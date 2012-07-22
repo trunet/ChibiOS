@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /*
+=======
++/*
+>>>>>>> chibios/master
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
                  2011,2012 Giovanni Di Sirio.
 
@@ -16,6 +20,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+<<<<<<< HEAD
 
                                       ---
 
@@ -23,6 +28,8 @@
     a combined work that includes ChibiOS/RT, without being obliged to provide
     the source code for any proprietary components. See the file exception.txt
     for full details of how and when the exception can be applied.
+=======
+>>>>>>> chibios/master
 */
 
 #ifndef _BOARD_H_
@@ -52,6 +59,7 @@
 /*
  * IO pins assignments.
  */
+<<<<<<< HEAD
 /*
 #define GPIOA_BUTTON            0
 #define GPIOA_SPI1NSS           4
@@ -65,6 +73,9 @@
 #define GPIOC_USB_DISC          11
 #define GPIOC_LED               12
 */
+=======
+/* Missing.*/
+>>>>>>> chibios/master
 
 /*
  * I/O ports initial setup, this configuration is established soon after reset
@@ -96,7 +107,11 @@
  * PA2  - Alternate output  (USART2 TX).
  * PA3  - Normal input      (USART2 RX).
  * PA9  - Alternate output  (USART1 TX).
+<<<<<<< HEAD
  * PA10  - Normal input      (USART1 RX).
+=======
+ * PA10 - Normal input      (USART1 RX).
+>>>>>>> chibios/master
  */
 #define VAL_GPIOACRL            0x88884B88      /*  PA7...PA0 */
 #define VAL_GPIOACRH            0x888884B8      /* PA15...PA8 */

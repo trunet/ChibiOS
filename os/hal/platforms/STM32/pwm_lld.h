@@ -94,7 +94,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM1) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM1                  TRUE
+#define STM32_PWM_USE_TIM1                  FALSE
 #endif
 
 /**
@@ -103,7 +103,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM2) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM2                  TRUE
+#define STM32_PWM_USE_TIM2                  FALSE
 #endif
 
 /**
@@ -112,7 +112,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM3) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM3                  TRUE
+#define STM32_PWM_USE_TIM3                  FALSE
 #endif
 
 /**
@@ -121,7 +121,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM4) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM4                  TRUE
+#define STM32_PWM_USE_TIM4                  FALSE
 #endif
 
 /**
@@ -130,7 +130,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM5) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM5                  TRUE
+#define STM32_PWM_USE_TIM5                  FALSE
 #endif
 
 /**
@@ -139,7 +139,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_PWM_USE_TIM8) || defined(__DOXYGEN__)
-#define STM32_PWM_USE_TIM8                  TRUE
+#define STM32_PWM_USE_TIM8                  FALSE
 #endif
 
 /**
@@ -221,6 +221,36 @@
 
 #if STM32_PWM_USE_ADVANCED && !STM32_PWM_USE_TIM1 && !STM32_PWM_USE_TIM8
 #error "advanced mode selected but no advanced timer assigned"
+#endif
+
+#if STM32_PWM_USE_TIM1 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM1_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM1"
+#endif
+
+#if STM32_PWM_USE_TIM2 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM2_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM2"
+#endif
+
+#if STM32_PWM_USE_TIM3 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM3_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM3"
+#endif
+
+#if STM32_PWM_USE_TIM4 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM4_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM4"
+#endif
+
+#if STM32_PWM_USE_TIM5 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM5_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM5"
+#endif
+
+#if STM32_PWM_USE_TIM8 &&                                                   \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_PWM_TIM8_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to TIM8"
 #endif
 
 /*===========================================================================*/

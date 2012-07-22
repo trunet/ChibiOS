@@ -59,21 +59,6 @@
 #if !defined(MMC_NICE_WAITING) || defined(__DOXYGEN__)
 #define MMC_NICE_WAITING            TRUE
 #endif
-
-/**
- * @brief   Number of positive insertion queries before generating the
- *          insertion event.
- */
-#if !defined(MMC_POLLING_INTERVAL) || defined(__DOXYGEN__)
-#define MMC_POLLING_INTERVAL        10
-#endif
-
-/**
- * @brief   Interval, in milliseconds, between insertion queries.
- */
-#if !defined(MMC_POLLING_DELAY) || defined(__DOXYGEN__)
-#define MMC_POLLING_DELAY           10
-#endif
 /** @} */
 
 /*===========================================================================*/
@@ -87,19 +72,6 @@
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
-
-/**
- * @brief   Driver state machine possible states.
- */
-typedef enum {
-  MMC_UNINIT = 0,                           /**< Not initialized.           */
-  MMC_STOP = 1,                             /**< Stopped.                   */
-  MMC_WAIT = 2,                             /**< Waiting card.              */
-  MMC_INSERTED = 3,                         /**< Card inserted.             */
-  MMC_READY = 4,                            /**< Card ready.                */
-  MMC_READING = 5,                          /**< Reading.                   */
-  MMC_WRITING = 6                           /**< Writing.                   */
-} mmcstate_t;
 
 /**
  * @brief   MMC/SD over SPI driver configuration structure.
@@ -120,6 +92,21 @@ typedef struct {
 } MMCConfig;
 
 /**
+ * @brief   @p MMCDriver specific methods.
+ */
+#define _mmc_driver_methods                                                 \
+  _mmcsd_block_device_methods
+
+/**
+ * @extends MMCSDBlockDeviceVMT
+ *
+ * @brief   @p MMCDriver virtual methods table.
+ */
+struct MMCDriverVMT {
+  _mmc_driver_methods
+};
+
+/**
  * @extends MMCSDBlockDevice
  *
  * @brief   Structure representing a MMC/SD over SPI driver.
@@ -128,47 +115,16 @@ typedef struct {
   /**
    * @brief Virtual Methods Table.
    */
-  const struct MMCSDBlockDeviceVMT *vmt;
-  /**
-   * @brief Driver state.
-   */
-  mmcstate_t            state;
+  const struct MMCDriverVMT *vmt;
+  _mmcsd_block_device_data
   /**
    * @brief Current configuration data.
    */
   const MMCConfig       *config;
-  /**
-   * @brief Card insertion event source.
-   */
-  EventSource           inserted_event;
-  /**
-   * @brief Card removal event source.
-   */
-  EventSource           removed_event;
-  /**
-   * @brief MMC insertion polling timer.
-   */
-  VirtualTimer          vt;
-  /**
-   * @brief Insertion counter.
-   */
-  uint_fast8_t          cnt;
   /***
    * @brief Addresses use blocks instead of bytes.
    */
   bool_t                block_addresses;
-  /**
-   * @brief Card CID.
-   */
-  uint32_t                  cid[4];
-  /**
-   * @brief Card CSD.
-   */
-  uint32_t                  csd[4];
-  /**
-   * @brief Total number of blocks in card.
-   */
-  uint32_t              capacity;
 } MMCDriver;
 
 /*===========================================================================*/
@@ -180,14 +136,20 @@ typedef struct {
  * @{
  */
 /**
- * @brief   Returns the driver state.
+ * @brief   Returns the card insertion status.
+ * @note    This macro wraps a low level function named
+ *          @p sdc_lld_is_card_inserted(), this function must be
+ *          provided by the application because it is not part of the
+ *          SDC driver.
  *
  * @param[in] mmcp      pointer to the @p MMCDriver object
- * @return              The driver state.
+ * @return              The card state.
+ * @retval FALSE        card not inserted.
+ * @retval TRUE         card inserted.
  *
  * @api
  */
-#define mmcGetDriverState(mmcp) ((mmcp)->state)
+#define mmcIsCardInserted(mmcp) mmc_lld_is_card_inserted(mmcp)
 
 /**
  * @brief   Returns the write protect status.

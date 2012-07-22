@@ -144,10 +144,6 @@
  * @name    PWR_CR register bits definitions
  * @{
  */
-#define STM32_VOS_MASK          (1 << 14)   /**< Core voltage mask.         */
-#define STM32_VOS_LOW           (0 << 14)   /**< Core voltage set to low.   */
-#define STM32_VOS_HIGH          (1 << 14)   /**< Core voltage set to high.  */
-
 #define STM32_PLS_MASK          (7 << 5)    /**< PLS bits mask.             */
 #define STM32_PLS_LEV0          (0 << 5)    /**< PVD level 0.               */
 #define STM32_PLS_LEV1          (1 << 5)    /**< PVD level 1.               */
@@ -291,6 +287,7 @@
 /* CAN attributes.*/
 #define STM32_HAS_CAN1          TRUE
 #define STM32_HAS_CAN2          TRUE
+#define STM32_CAN_MAX_FILTERS   28
 
 /* DAC attributes.*/
 #define STM32_HAS_DAC           TRUE
@@ -341,7 +338,7 @@
 
 /* RTC attributes.*/
 #define STM32_HAS_RTC           TRUE
-#define STM32_RTC_HAS_SUBSECONDS TRUE
+#define STM32_RTC_HAS_SUBSECONDS FALSE
 #define STM32_RTC_IS_CALENDAR   TRUE
 
 /* SDIO attributes.*/
@@ -1386,7 +1383,8 @@ typedef uint32_t halrtcnt_t;
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-/* STM32 DMA and RCC helpers.*/
+/* STM32 ISR, DMA and RCC helpers.*/
+#include "stm32_isr.h"
 #include "stm32_dma.h"
 #include "stm32_rcc.h"
 

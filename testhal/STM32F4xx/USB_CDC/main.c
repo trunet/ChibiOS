@@ -226,47 +226,62 @@ static const USBDescriptor *get_descriptor(USBDriver *usbp,
 }
 
 /**
+ * @brief   IN EP1 state.
+ */
+static USBInEndpointState ep1instate;
+
+/**
  * @brief   EP1 initialization structure (IN only).
  */
 static const USBEndpointConfig ep1config = {
-  USB_EP_MODE_TYPE_BULK | USB_EP_MODE_PACKET,
+  USB_EP_MODE_TYPE_BULK,
   NULL,
   sduDataTransmitted,
   NULL,
   0x0040,
   0x0000,
-  NULL,
+  &ep1instate,
   NULL,
   NULL
 };
 
 /**
+ * @brief   OUT EP2 state.
+ */
+USBOutEndpointState ep2outstate;
+
+/**
  * @brief   EP2 initialization structure (IN only).
  */
 static const USBEndpointConfig ep2config = {
-  USB_EP_MODE_TYPE_INTR | USB_EP_MODE_PACKET,
+  USB_EP_MODE_TYPE_INTR,
   NULL,
   sduInterruptTransmitted,
   NULL,
   0x0010,
   0x0000,
   NULL,
-  NULL,
+  &ep2outstate,
   NULL
 };
+
+/**
+ * @brief   OUT EP2 state.
+ */
+USBOutEndpointState ep3outstate;
 
 /**
  * @brief   EP3 initialization structure (OUT only).
  */
 static const USBEndpointConfig ep3config = {
-  USB_EP_MODE_TYPE_BULK | USB_EP_MODE_PACKET,
+  USB_EP_MODE_TYPE_BULK,
   NULL,
   NULL,
   sduDataReceived,
   0x0000,
   0x0040,
   NULL,
-  NULL,
+  &ep3outstate,
   NULL
 };
 
@@ -281,13 +296,18 @@ static void usb_event(USBDriver *usbp, usbevent_t event) {
   case USB_EVENT_ADDRESS:
     return;
   case USB_EVENT_CONFIGURED:
+    chSysLockFromIsr();
+
     /* Enables the endpoints specified into the configuration.
        Note, this callback is invoked from an ISR so I-Class functions
        must be used.*/
-    chSysLockFromIsr();
     usbInitEndpointI(usbp, USB_CDC_DATA_REQUEST_EP, &ep1config);
     usbInitEndpointI(usbp, USB_CDC_INTERRUPT_REQUEST_EP, &ep2config);
     usbInitEndpointI(usbp, USB_CDC_DATA_AVAILABLE_EP, &ep3config);
+
+    /* Resetting the state of the CDC subsystem.*/
+    sduConfigureHookI(usbp);
+
     chSysUnlockFromIsr();
     return;
   case USB_EVENT_SUSPEND:
@@ -422,10 +442,10 @@ int main(void) {
   /*
    * Activates the USB driver and then the USB bus pull-up on D+.
    */
+  usbDisconnectBus(serusbcfg.usbp);
+  chThdSleepMilliseconds(1000);
   sduObjectInit(&SDU1);
   sduStart(&SDU1, &serusbcfg);
-  usbDisconnectBus(serusbcfg.usbp);
-  chThdSleepMilliseconds(100);
   usbConnectBus(serusbcfg.usbp);
 
   /*

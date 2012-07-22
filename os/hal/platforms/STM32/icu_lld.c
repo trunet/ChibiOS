@@ -125,6 +125,9 @@ static void icu_lld_serve_interrupt(ICUDriver *icup) {
 /*===========================================================================*/
 
 #if STM32_ICU_USE_TIM1
+#if !defined(STM32_TIM1_UP_HANDLER)
+#error "STM32_TIM1_UP_HANDLER not defined"
+#endif
 /**
  * @brief   TIM1 compare interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
@@ -133,7 +136,27 @@ static void icu_lld_serve_interrupt(ICUDriver *icup) {
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM1_CC_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM1_UP_HANDLER) {
+
+  CH_IRQ_PROLOGUE();
+
+  icu_lld_serve_interrupt(&ICUD1);
+
+  CH_IRQ_EPILOGUE();
+}
+
+#if !defined(STM32_TIM1_CC_HANDLER)
+#error "STM32_TIM1_CC_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM1 compare interrupt handler.
+ * @note    It is assumed that the various sources are only activated if the
+ *          associated callback pointer is not equal to @p NULL in order to not
+ *          perform an extra check in a potentially critical interrupt handler.
+ *
+ * @isr
+ */
+CH_IRQ_HANDLER(STM32_TIM1_CC_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -144,15 +167,18 @@ CH_IRQ_HANDLER(TIM1_CC_IRQHandler) {
 #endif /* STM32_ICU_USE_TIM1 */
 
 #if STM32_ICU_USE_TIM2
+#if !defined(STM32_TIM2_HANDLER)
+#error "STM32_TIM2_HANDLER not defined"
+#endif
 /**
- * @brief   TIM2 compare interrupt handler.
+ * @brief   TIM2 interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
  *          associated callback pointer is not equal to @p NULL in order to not
  *          perform an extra check in a potentially critical interrupt handler.
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM2_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM2_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -163,15 +189,18 @@ CH_IRQ_HANDLER(TIM2_IRQHandler) {
 #endif /* STM32_ICU_USE_TIM2 */
 
 #if STM32_ICU_USE_TIM3
+#if !defined(STM32_TIM3_HANDLER)
+#error "STM32_TIM3_HANDLER not defined"
+#endif
 /**
- * @brief   TIM3 compare interrupt handler.
+ * @brief   TIM3 interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
  *          associated callback pointer is not equal to @p NULL in order to not
  *          perform an extra check in a potentially critical interrupt handler.
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM3_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM3_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -182,15 +211,18 @@ CH_IRQ_HANDLER(TIM3_IRQHandler) {
 #endif /* STM32_ICU_USE_TIM3 */
 
 #if STM32_ICU_USE_TIM4
+#if !defined(STM32_TIM4_HANDLER)
+#error "STM32_TIM4_HANDLER not defined"
+#endif
 /**
- * @brief   TIM4 compare interrupt handler.
+ * @brief   TIM4 interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
  *          associated callback pointer is not equal to @p NULL in order to not
  *          perform an extra check in a potentially critical interrupt handler.
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM4_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM4_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -201,15 +233,18 @@ CH_IRQ_HANDLER(TIM4_IRQHandler) {
 #endif /* STM32_ICU_USE_TIM4 */
 
 #if STM32_ICU_USE_TIM5
+#if !defined(STM32_TIM5_HANDLER)
+#error "STM32_TIM5_HANDLER not defined"
+#endif
 /**
- * @brief   TIM5 compare interrupt handler.
+ * @brief   TIM5 interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
  *          associated callback pointer is not equal to @p NULL in order to not
  *          perform an extra check in a potentially critical interrupt handler.
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM5_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM5_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -220,6 +255,9 @@ CH_IRQ_HANDLER(TIM5_IRQHandler) {
 #endif /* STM32_ICU_USE_TIM5 */
 
 #if STM32_ICU_USE_TIM8
+#if !defined(STM32_TIM8_UP_HANDLER)
+#error "STM32_TIM8_UP_HANDLER not defined"
+#endif
 /**
  * @brief   TIM8 compare interrupt handler.
  * @note    It is assumed that the various sources are only activated if the
@@ -228,7 +266,27 @@ CH_IRQ_HANDLER(TIM5_IRQHandler) {
  *
  * @isr
  */
-CH_IRQ_HANDLER(TIM8_CC_IRQHandler) {
+CH_IRQ_HANDLER(STM32_TIM8_UP_HANDLER) {
+
+  CH_IRQ_PROLOGUE();
+
+  icu_lld_serve_interrupt(&ICUD8);
+
+  CH_IRQ_EPILOGUE();
+}
+
+#if !defined(STM32_TIM8_CC_HANDLER)
+#error "STM32_TIM8_CC_HANDLER not defined"
+#endif
+/**
+ * @brief   TIM8 compare interrupt handler.
+ * @note    It is assumed that the various sources are only activated if the
+ *          associated callback pointer is not equal to @p NULL in order to not
+ *          perform an extra check in a potentially critical interrupt handler.
+ *
+ * @isr
+ */
+CH_IRQ_HANDLER(STM32_TIM8_CC_HANDLER) {
 
   CH_IRQ_PROLOGUE();
 
@@ -306,7 +364,9 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD1 == icup) {
       rccEnableTIM1(FALSE);
       rccResetTIM1();
-      nvicEnableVector(TIM1_CC_IRQn,
+      nvicEnableVector(STM32_TIM1_UP_NUMBER,
+                       CORTEX_PRIORITY_MASK(STM32_ICU_TIM1_IRQ_PRIORITY));
+      nvicEnableVector(STM32_TIM1_CC_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM1_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK2;
     }
@@ -315,7 +375,7 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD2 == icup) {
       rccEnableTIM2(FALSE);
       rccResetTIM2();
-      nvicEnableVector(TIM2_IRQn,
+      nvicEnableVector(STM32_TIM2_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM2_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK1;
     }
@@ -324,7 +384,7 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD3 == icup) {
       rccEnableTIM3(FALSE);
       rccResetTIM3();
-      nvicEnableVector(TIM3_IRQn,
+      nvicEnableVector(STM32_TIM3_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM3_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK1;
     }
@@ -333,7 +393,7 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD4 == icup) {
       rccEnableTIM4(FALSE);
       rccResetTIM4();
-      nvicEnableVector(TIM4_IRQn,
+      nvicEnableVector(STM32_TIM4_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM4_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK1;
     }
@@ -343,7 +403,7 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD5 == icup) {
       rccEnableTIM5(FALSE);
       rccResetTIM5();
-      nvicEnableVector(TIM5_IRQn,
+      nvicEnableVector(STM32_TIM5_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM5_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK1;
     }
@@ -352,7 +412,9 @@ void icu_lld_start(ICUDriver *icup) {
     if (&ICUD8 == icup) {
       rccEnableTIM8(FALSE);
       rccResetTIM8();
-      nvicEnableVector(TIM8_CC_IRQn,
+      nvicEnableVector(STM32_TIM8_UP_NUMBER,
+                       CORTEX_PRIORITY_MASK(STM32_ICU_TIM8_IRQ_PRIORITY));
+      nvicEnableVector(STM32_TIM8_CC_NUMBER,
                        CORTEX_PRIORITY_MASK(STM32_ICU_TIM8_IRQ_PRIORITY));
       icup->clock = STM32_TIMCLK2;
     }
@@ -442,38 +504,40 @@ void icu_lld_stop(ICUDriver *icup) {
 
 #if STM32_ICU_USE_TIM1
     if (&ICUD1 == icup) {
-      nvicDisableVector(TIM1_CC_IRQn);
+      nvicDisableVector(STM32_TIM1_UP_NUMBER);
+      nvicDisableVector(STM32_TIM1_CC_NUMBER);
       rccDisableTIM1(FALSE);
     }
 #endif
 #if STM32_ICU_USE_TIM2
     if (&ICUD2 == icup) {
-      nvicDisableVector(TIM2_IRQn);
+      nvicDisableVector(STM32_TIM2_NUMBER);
       rccDisableTIM2(FALSE);
     }
 #endif
 #if STM32_ICU_USE_TIM3
     if (&ICUD3 == icup) {
-      nvicDisableVector(TIM3_IRQn);
+      nvicDisableVector(STM32_TIM3_NUMBER);
       rccDisableTIM3(FALSE);
     }
 #endif
 #if STM32_ICU_USE_TIM4
     if (&ICUD4 == icup) {
-      nvicDisableVector(TIM4_IRQn);
+      nvicDisableVector(STM32_TIM4_NUMBER);
       rccDisableTIM4(FALSE);
     }
 #endif
 #if STM32_ICU_USE_TIM5
     if (&ICUD5 == icup) {
-      nvicDisableVector(TIM5_IRQn);
+      nvicDisableVector(STM32_TIM5_NUMBER);
       rccDisableTIM5(FALSE);
     }
 #endif
   }
 #if STM32_ICU_USE_TIM8
     if (&ICUD8 == icup) {
-      nvicDisableVector(TIM8_CC_IRQn);
+      nvicDisableVector(STM32_TIM8_UP_NUMBER);
+      nvicDisableVector(STM32_TIM8_CC_NUMBER);
       rccDisableTIM8(FALSE);
     }
 #endif

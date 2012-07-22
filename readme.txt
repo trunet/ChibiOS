@@ -75,12 +75,33 @@
   |  +--STM8S/          - STM8S HAL demos.
   +--tools              - Various tools.
      +--eclipse         - Eclipse enhancements.
+     +--gencfg          - Configurations generator tool.
 
 *****************************************************************************
 *** Releases                                                              ***
 *****************************************************************************
 
 *** 2.5.0 ***
+- FIX: Fixed problem in STM32 DMA1 stream1 IRQ handler (bug 3538468)
+  (backported to 2.4.2).
+- FIX: Fixed TIM8 not working in STM32 GPT driver (bug 3536523)(
+- FIX: Fixed wrong priority assigned to TIM8 in STM32 ICU driver (bug 3536950)
+  (backported to 2.4.2).
+- FIX: Fixed TIM8 not working in STM32 GPT driver (bug 3536523)(backported
+  to 2.4.2).
+- FIX: Fixed timer overflow not working in STM32 ICU driver for TIM1/TIM8 (bug
+  3536522)(backported to 2.4.2).
+- FIX: Fixed wrong DMA channels on USART2 in STM32F10X_MD_VL devices (bug
+  3536070)(backported to 2.4.2).
+- FIX: Fixed issue with DMA channel init in STM32 ADC and SPI drivers (bug
+  3535938)(backported to 2.2.10 and 2.4.2).
+- FIX: Fixed issue debugging mmc_spi (bug 3535887)(trunk only).
+- FIX: Fixed unreliable PHY initialization (bug 3534819)(backported to 2.4.2).
+- FIX: Fixed wrong ADC callback buffer pointer in ADC driver (bug 3534767)
+  (backported to 2.2.10 and 2.4.2).
+- FIX: Fixed STM32F2 RTC subseconds (bug 3533414)(trunk only).
+- FIX: Fixed problem with arm-v6m and state checker (bug 3532591)(backported
+  to 2.4.2).
 - FIX: Fixed wrong MAC divider setting in STM32 MAC driver (bug 3531290)
   (backported to 2.4.2).
 - FIX: Fixed wrong MCO1 divider in STM32F2/F4 HAL (bug 3531289)(backported
@@ -141,17 +162,42 @@
   3484947)(backported to 2.4.1).
 - FIX: Fixed various minor documentation errors (bug 3484942)(backported
   to 2.4.1).
+- NEW: Added USART6 support to the STM32 UARTv1 driver, contributed by Erik
+  van der Zalm.
+- NEW: Added demo for Arduino Mega, contributed by Fabio Utzig.
+- NEW: Added support for ATmega1280, contributed by Fabio Utzig.
+- NEW: Added I2C driver for AVR, contributed by Fabio Utzig.
+- NEW: Added FatFs demo for the Olimex STM32-P107 board.
+- NEW: Added support for the Olimex STM32-E407 board. Added an integrated
+  demo including USB-CDC, lwIP with web server, FatFs and shell, all running
+  together.
+- NEW: Added an experimental and unsupported STM8 port for the IAR compiler,
+  contributed by "king2".
+- NEW: Updated STM8 header files to latest versions from ST.
+- NEW: Reorganized the STM32 EXT driver to have a sub-platform specific
+  part containing all the ISR related code, this has been necessary because
+  the significant differences among the various sub-families.
+- NEW: Validated CAN driver on STM32F2/F4 (backported to 2.4.2).
+- NEW: USB implementation for STM32F105/F107/2xx/F4xx devices.
+- NEW: Improved SerialUSB driver using the new queued mode, much smaller
+  than the previous driver.
+- NEW: Improved USB driver model supporting also queues for endpoint I/O,
+  packet mode removed.
+- NEW: Added an application-defined field to I/O queues (a void pointer).
+- NEW: Added board files for Maple Mini STM32F103, contributed by Wagner
+  Sartori Junior.
 - NEW: Added SSP1 capability to the LPC13xx SPI driver.
 - NEW: Updated vendor headers for LPC11xx and LPC13xx, the new headers
   support several new devices.
 - NEW: Demo for STM32F0-Discovery board.
 - NEW: Initial support for STM32F0xx devices, added a specific ADC driver.
+  Validated EXT, GPT, ICU, PAL, PWM, Serial, SPI, UART drivers.
 - NEW: Added a common ancestor class to the SDC and MMC_SPI drivers. This
   allows to share code and definitions.
 - NEW: Modified the SDC driver to implement the new block devices abstract
   interface.
 - NEW: Added two new functions to the MMC_SPI driver: mmcSync() and
-  mmc_Get_Info(). Also implemented the new block devices abstract
+  mmcGetInfo(). Also implemented the new block devices abstract
   interface. Moved the configuration parameters from mmcObjectInit() to
   the configuration structure saving some RAM space. Updated demos.
 - NEW: Added an abstract interface for block devices in the HAL. This
@@ -202,8 +248,12 @@
   lwIP demos (backported to 2.4.1).
 - NEW: lwIP related code is not centralized into a single place, no need to
   duplicate the code in each application or demo (backported to 2.4.1).
+- CHANGE: Added two new methods to the BaseSequentialStream interface:
+  chSequentialStreamPut() and chSequentialStreamGet().
 - CHANGE: Removed the chioch.h header from the kernel, now channels interface
-  is exported by the HAL.
+  is exported by the HAL. Removed functions chPutWouldBlock() and
+  chGetWouldBlock().
+- CHANGE: Removed macro chMsgGetS(), chMsgGet() is still available.
 - CHANGE: chprintf() now takes a BaseSequentialStream as parameter instead
   of a BaseChannel making it more generic.
 - CHANGE: Now the shell requires a BaseSequentialStream instead of a
@@ -219,6 +269,7 @@
 - CHANGE: Renamed Ethernet driver in AT91 HAL ETHD1 (backported to 2.4.1).
 - CHANGE: Macros icuGetWidthI() and icuGetPeriodI() renamed to icuGetWidth()
   and icuGetPeriod().
+- Various documentation fixes and improvements.
 
 *** 2.3.5 ***
 - FIX: Fixed RTC compile problem on STM32F103 (bug 3468445).

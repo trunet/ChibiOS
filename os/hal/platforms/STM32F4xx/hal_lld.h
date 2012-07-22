@@ -286,6 +286,7 @@
 /* CAN attributes.*/
 #define STM32_HAS_CAN1          TRUE
 #define STM32_HAS_CAN2          TRUE
+#define STM32_CAN_MAX_FILTERS   28
 
 /* DAC attributes.*/
 #define STM32_HAS_DAC           TRUE
@@ -1402,7 +1403,8 @@ typedef uint32_t halrtcnt_t;
 /* External declarations.                                                    */
 /*===========================================================================*/
 
-/* STM32 DMA and RCC helpers.*/
+/* STM32 ISR, DMA and RCC helpers.*/
+#include "stm32_isr.h"
 #include "stm32_dma.h"
 #include "stm32_rcc.h"
 

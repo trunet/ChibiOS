@@ -49,15 +49,15 @@
 /*===========================================================================*/
 
 /* Forward declarations required by mmc_vmt.*/
-bool_t mmc_read(void *instance, uint32_t startblk,
-                uint8_t *buffer, uint32_t n);
-bool_t mmc_write(void *instance, uint32_t startblk,
-                 const uint8_t *buffer, uint32_t n);
+static bool_t mmc_read(void *instance, uint32_t startblk,
+                       uint8_t *buffer, uint32_t n);
+static bool_t mmc_write(void *instance, uint32_t startblk,
+                        const uint8_t *buffer, uint32_t n);
 
 /**
  * @brief   Virtual methods table.
  */
-static const struct MMCSDBlockDeviceVMT mmc_vmt = {
+static const struct MMCDriverVMT mmc_vmt = {
   (bool_t (*)(void *))mmc_lld_is_card_inserted,
   (bool_t (*)(void *))mmc_lld_is_write_protected,
   (bool_t (*)(void *))mmcConnect,
@@ -100,36 +100,36 @@ static const uint8_t crc7_lookup_table[256] = {
 /* Driver local functions.                                                   */
 /*===========================================================================*/
 
-bool_t mmc_read(void *instance, uint32_t startblk,
+static bool_t mmc_read(void *instance, uint32_t startblk,
                 uint8_t *buffer, uint32_t n) {
 
   if (mmcStartSequentialRead((MMCDriver *)instance, startblk))
-    return TRUE;
+    return CH_FAILED;
   while (n > 0) {
     if (mmcSequentialRead((MMCDriver *)instance, buffer))
-      return TRUE;
+      return CH_FAILED;
     buffer += MMCSD_BLOCK_SIZE;
     n--;
   }
   if (mmcStopSequentialRead((MMCDriver *)instance))
-      return TRUE;
-  return FALSE;
+      return CH_FAILED;
+  return CH_SUCCESS;
 }
 
-bool_t mmc_write(void *instance, uint32_t startblk,
+static bool_t mmc_write(void *instance, uint32_t startblk,
                  const uint8_t *buffer, uint32_t n) {
 
   if (mmcStartSequentialWrite((MMCDriver *)instance, startblk))
-      return TRUE;
+      return CH_FAILED;
   while (n > 0) {
       if (mmcSequentialWrite((MMCDriver *)instance, buffer))
-          return TRUE;
+          return CH_FAILED;
       buffer += MMCSD_BLOCK_SIZE;
       n--;
   }
   if (mmcStopSequentialWrite((MMCDriver *)instance))
-      return TRUE;
-  return FALSE;
+      return CH_FAILED;
+  return CH_SUCCESS;
 }
 
 /**
@@ -145,38 +145,6 @@ static uint8_t crc7(uint8_t crc, const uint8_t *buffer, size_t len) {
   while (len--)
     crc = crc7_lookup_table[(crc << 1) ^ (*buffer++)];
   return crc;
-}
-
-/**
- * @brief   Insertion monitor timer callback function.
- *
- * @param[in] p         pointer to the @p MMCDriver object
- *
- * @notapi
- */
-static void tmrfunc(void *p) {
-  MMCDriver *mmcp = p;
-
-  chSysLockFromIsr();
-  if (mmcp->cnt > 0) {
-    if (mmc_lld_is_card_inserted(mmcp)) {
-      if (--mmcp->cnt == 0) {
-        mmcp->state = MMC_INSERTED;
-        chEvtBroadcastI(&mmcp->inserted_event);
-      }
-    }
-    else
-      mmcp->cnt = MMC_POLLING_INTERVAL;
-  }
-  else {
-    if (!mmc_lld_is_card_inserted(mmcp)) {
-      mmcp->state = MMC_WAIT;
-      mmcp->cnt = MMC_POLLING_INTERVAL;
-      chEvtBroadcastI(&mmcp->removed_event);
-    }
-  }
-  chVTSetI(&mmcp->vt, MS2ST(MMC_POLLING_DELAY), tmrfunc, mmcp);
-  chSysUnlockFromIsr();
 }
 
 /**
@@ -325,8 +293,8 @@ static uint8_t send_command_R3(MMCDriver *mmcp, uint8_t cmd, uint32_t arg,
  * @param[out] csd       pointer to the CSD buffer
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @notapi
  */
@@ -338,7 +306,7 @@ static bool_t read_CxD(MMCDriver *mmcp, uint8_t cmd, uint32_t cxd[4]) {
   send_hdr(mmcp, cmd, 0);
   if (recvr1(mmcp) != 0x00) {
     spiUnselect(mmcp->config->spip);
-    return TRUE;
+    return CH_FAILED;
   }
 
   /* Wait for data availability.*/
@@ -359,10 +327,10 @@ static bool_t read_CxD(MMCDriver *mmcp, uint8_t cmd, uint32_t cxd[4]) {
       spiIgnore(mmcp->config->spip, 2);
       spiUnselect(mmcp->config->spip);
 
-      return FALSE;
+      return CH_SUCCESS;
     }
   }
-  return TRUE;
+  return CH_FAILED;
 }
 
 /**
@@ -406,45 +374,33 @@ void mmcInit(void) {
  * @brief   Initializes an instance.
  *
  * @param[out] mmcp         pointer to the @p MMCDriver object
- * @param[in] spip          pointer to the SPI driver to be used as interface
- * @param[in] lscfg         low speed configuration for the SPI driver
- * @param[in] hscfg         high speed configuration for the SPI driver
- * @param[in] is_protected  function that returns the card write protection
- *                          setting
- * @param[in] is_inserted   function that returns the card insertion sensor
- *                          status
  *
  * @init
  */
 void mmcObjectInit(MMCDriver *mmcp) {
 
   mmcp->vmt = &mmc_vmt;
-  mmcp->state = MMC_STOP;
+  mmcp->state = BLK_STOP;
   mmcp->config = NULL;
   mmcp->block_addresses = FALSE;
-  chEvtInit(&mmcp->inserted_event);
-  chEvtInit(&mmcp->removed_event);
 }
 
 /**
  * @brief   Configures and activates the MMC peripheral.
  *
  * @param[in] mmcp      pointer to the @p MMCDriver object
- * @param[in] config    pointer to the @p MMCConfig object. Must be @p NULL.
+ * @param[in] config    pointer to the @p MMCConfig object.
  *
  * @api
  */
 void mmcStart(MMCDriver *mmcp, const MMCConfig *config) {
 
-  chDbgCheck((mmcp != NULL) && (config == NULL), "mmcStart");
+  chDbgCheck((mmcp != NULL) && (config != NULL), "mmcStart");
+  chDbgAssert((mmcp->state == BLK_STOP) || (mmcp->state == BLK_ACTIVE),
+              "mmcStart(), #1", "invalid state");
 
-  chSysLock();
-  chDbgAssert(mmcp->state == MMC_STOP, "mmcStart(), #1", "invalid state");
   mmcp->config = config;
-  mmcp->state = MMC_WAIT;
-  mmcp->cnt = MMC_POLLING_INTERVAL;
-  chVTSetI(&mmcp->vt, MS2ST(MMC_POLLING_DELAY), tmrfunc, mmcp);
-  chSysUnlock();
+  mmcp->state = BLK_ACTIVE;
 }
 
 /**
@@ -457,18 +413,11 @@ void mmcStart(MMCDriver *mmcp, const MMCConfig *config) {
 void mmcStop(MMCDriver *mmcp) {
 
   chDbgCheck(mmcp != NULL, "mmcStop");
-
-  chSysLock();
-  chDbgAssert((mmcp->state != MMC_UNINIT) &&
-              (mmcp->state != MMC_READING) &&
-              (mmcp->state != MMC_WRITING),
+  chDbgAssert((mmcp->state == BLK_STOP) || (mmcp->state == BLK_ACTIVE),
               "mmcStop(), #1", "invalid state");
-  if (mmcp->state != MMC_STOP) {
-    mmcp->state = MMC_STOP;
-    chVTResetI(&mmcp->vt);
-  }
-  chSysUnlock();
+
   spiStop(mmcp->config->spip);
+  mmcp->state = BLK_STOP;
 }
 
 /**
@@ -482,111 +431,105 @@ void mmcStop(MMCDriver *mmcp) {
  * @param[in] mmcp      pointer to the @p MMCDriver object
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded and the driver is now
+ * @retval CH_SUCCESS   the operation succeeded and the driver is now
  *                      in the @p MMC_READY state.
- * @retval TRUE         the operation failed.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcConnect(MMCDriver *mmcp) {
   unsigned i;
-  bool_t result;
 
   chDbgCheck(mmcp != NULL, "mmcConnect");
 
-  chDbgAssert((mmcp->state != MMC_UNINIT) && (mmcp->state != MMC_STOP),
+  chDbgAssert((mmcp->state == BLK_ACTIVE) || (mmcp->state == BLK_READY),
               "mmcConnect(), #1", "invalid state");
 
-  if (mmcp->state == MMC_INSERTED) {
-    /* Slow clock mode and 128 clock pulses.*/
-    spiStart(mmcp->config->spip, mmcp->config->lscfg);
-    spiIgnore(mmcp->config->spip, 16);
+  /* Connection procedure in progress.*/
+  mmcp->state = BLK_CONNECTING;
 
-    /* SPI mode selection.*/
-    i = 0;
-    while (TRUE) {
-      if (send_command_R1(mmcp, MMCSD_CMD_GO_IDLE_STATE, 0) == 0x01)
-        break;
-      if (++i >= MMC_CMD0_RETRY)
-        return TRUE;
-      chThdSleepMilliseconds(10);
-    }
+  /* Slow clock mode and 128 clock pulses.*/
+  spiStart(mmcp->config->spip, mmcp->config->lscfg);
+  spiIgnore(mmcp->config->spip, 16);
 
-    /* Try to detect if this is a high capacity card and switch to block
-       addresses if possible.
-       This method is based on "How to support SDC Ver2 and high capacity cards"
-       by ElmChan.*/
-    uint8_t r3[4];
-    if (send_command_R3(mmcp, MMCSD_CMD_SEND_IF_COND,
-                        MMCSD_CMD8_PATTERN, r3) != 0x05) {
-
-      /* Switch to SDHC mode.*/
-      i = 0;
-      while (TRUE) {
-        if ((send_command_R1(mmcp, MMCSD_CMD_APP_CMD, 0) == 0x01) &&
-            (send_command_R3(mmcp, MMCSD_CMD_APP_OP_COND,
-                             0x400001aa, r3) == 0x00))
-          break;
-
-        if (++i >= MMC_ACMD41_RETRY)
-          return TRUE;
-        chThdSleepMilliseconds(10);
-      }
-
-      /* Execute dedicated read on OCR register */
-      send_command_R3(mmcp, MMCSD_CMD_READ_OCR, 0, r3);
-
-      /* Check if CCS is set in response. Card operates in block mode if set.*/
-      if(r3[0] & 0x40)
-        mmcp->block_addresses = TRUE;
-    }
-
-    /* Initialization.*/
-    i = 0;
-    while (TRUE) {
-      uint8_t b = send_command_R1(mmcp, MMCSD_CMD_INIT, 0);
-      if (b == 0x00)
-        break;
-      if (b != 0x01)
-        return TRUE;
-      if (++i >= MMC_CMD1_RETRY)
-        return TRUE;
-      chThdSleepMilliseconds(10);
-    }
-
-    /* Initialization complete, full speed.*/
-    spiStart(mmcp->config->spip, mmcp->config->hscfg);
-
-    /* Setting block size.*/
-    if (send_command_R1(mmcp, MMCSD_CMD_SET_BLOCKLEN,
-                        MMCSD_BLOCK_SIZE) != 0x00)
-      return TRUE;
-
-    /* Determine capacity.*/
-    if (read_CxD(mmcp, MMCSD_CMD_SEND_CSD, mmcp->csd))
-      return TRUE;
-    mmcp->capacity = mmcsdGetCapacity(mmcp->csd);
-    if (mmcp->capacity == 0)
-      return TRUE;
-
-    if (read_CxD(mmcp, MMCSD_CMD_SEND_CID, mmcp->cid))
-      return TRUE;
-
-    /* Transition to MMC_READY state (if not extracted).*/
-    chSysLock();
-    if (mmcp->state == MMC_INSERTED) {
-      mmcp->state = MMC_READY;
-      result = FALSE;
-    }
-    else
-      result = TRUE;
-    chSysUnlock();
-    return result;
+  /* SPI mode selection.*/
+  i = 0;
+  while (TRUE) {
+    if (send_command_R1(mmcp, MMCSD_CMD_GO_IDLE_STATE, 0) == 0x01)
+      break;
+    if (++i >= MMC_CMD0_RETRY)
+      goto failed;
+    chThdSleepMilliseconds(10);
   }
-  if (mmcp->state == MMC_READY)
-    return FALSE;
-  /* Any other state is invalid.*/
-  return TRUE;
+
+  /* Try to detect if this is a high capacity card and switch to block
+     addresses if possible.
+     This method is based on "How to support SDC Ver2 and high capacity cards"
+     by ElmChan.*/
+  uint8_t r3[4];
+  if (send_command_R3(mmcp, MMCSD_CMD_SEND_IF_COND,
+                      MMCSD_CMD8_PATTERN, r3) != 0x05) {
+
+    /* Switch to SDHC mode.*/
+    i = 0;
+    while (TRUE) {
+      if ((send_command_R1(mmcp, MMCSD_CMD_APP_CMD, 0) == 0x01) &&
+          (send_command_R3(mmcp, MMCSD_CMD_APP_OP_COND,
+                           0x400001aa, r3) == 0x00))
+        break;
+
+      if (++i >= MMC_ACMD41_RETRY)
+        goto failed;
+      chThdSleepMilliseconds(10);
+    }
+
+    /* Execute dedicated read on OCR register */
+    send_command_R3(mmcp, MMCSD_CMD_READ_OCR, 0, r3);
+
+    /* Check if CCS is set in response. Card operates in block mode if set.*/
+    if (r3[0] & 0x40)
+      mmcp->block_addresses = TRUE;
+  }
+
+  /* Initialization.*/
+  i = 0;
+  while (TRUE) {
+    uint8_t b = send_command_R1(mmcp, MMCSD_CMD_INIT, 0);
+    if (b == 0x00)
+      break;
+    if (b != 0x01)
+      goto failed;
+    if (++i >= MMC_CMD1_RETRY)
+      goto failed;
+    chThdSleepMilliseconds(10);
+  }
+
+  /* Initialization complete, full speed.*/
+  spiStart(mmcp->config->spip, mmcp->config->hscfg);
+
+  /* Setting block size.*/
+  if (send_command_R1(mmcp, MMCSD_CMD_SET_BLOCKLEN,
+                      MMCSD_BLOCK_SIZE) != 0x00)
+    goto failed;
+
+  /* Determine capacity.*/
+  if (read_CxD(mmcp, MMCSD_CMD_SEND_CSD, mmcp->csd))
+    goto failed;
+  mmcp->capacity = mmcsdGetCapacity(mmcp->csd);
+  if (mmcp->capacity == 0)
+    goto failed;
+
+  if (read_CxD(mmcp, MMCSD_CMD_SEND_CID, mmcp->cid))
+    goto failed;
+
+  mmcp->state = BLK_READY;
+  return CH_SUCCESS;
+
+  /* Connection failed, state reset to BLK_ACTIVE.*/
+failed:
+  spiStop(mmcp->config->spip);
+  mmcp->state = BLK_ACTIVE;
+  return CH_FAILED;
 }
 
 /**
@@ -595,34 +538,32 @@ bool_t mmcConnect(MMCDriver *mmcp) {
  * @param[in] mmcp      pointer to the @p MMCDriver object
  * @return              The operation status.
  *
- * @retval FALSE        the operation succeeded and the driver is now
+ * @retval CH_SUCCESS   the operation succeeded and the driver is now
  *                      in the @p MMC_INSERTED state.
- * @retval TRUE         the operation failed.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcDisconnect(MMCDriver *mmcp) {
-  bool_t status;
 
   chDbgCheck(mmcp != NULL, "mmcDisconnect");
 
-  chDbgAssert((mmcp->state != MMC_UNINIT) && (mmcp->state != MMC_STOP),
+  chSysLock();
+  chDbgAssert((mmcp->state == BLK_ACTIVE) || (mmcp->state == BLK_READY),
               "mmcDisconnect(), #1", "invalid state");
-  switch (mmcp->state) {
-  case MMC_READY:
-    /* Wait for the pending write operations to complete.*/
-    sync(mmcp);
-    chSysLock();
-    if (mmcp->state == MMC_READY)
-      mmcp->state = MMC_INSERTED;
+  if (mmcp->state == BLK_ACTIVE) {
     chSysUnlock();
-  case MMC_INSERTED:
-    status = FALSE;
-  default:
-    status = TRUE;
+    return CH_SUCCESS;
   }
+  mmcp->state = BLK_DISCONNECTING;
+  chSysUnlock();
+
+  /* Wait for the pending write operations to complete.*/
+  sync(mmcp);
+
   spiStop(mmcp->config->spip);
-  return status;
+  mmcp->state = BLK_ACTIVE;
+  return CH_SUCCESS;
 }
 
 /**
@@ -632,40 +573,35 @@ bool_t mmcDisconnect(MMCDriver *mmcp) {
  * @param[in] startblk  first block to read
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcStartSequentialRead(MMCDriver *mmcp, uint32_t startblk) {
 
   chDbgCheck(mmcp != NULL, "mmcStartSequentialRead");
+  chDbgAssert(mmcp->state == BLK_READY,
+              "mmcStartSequentialRead(), #1", "invalid state");
 
-  chSysLock();
-  if (mmcp->state != MMC_READY) {
-    chSysUnlock();
-    return TRUE;
-  }
-  mmcp->state = MMC_READING;
-  chSysUnlock();
+  /* Read operation in progress.*/
+  mmcp->state = BLK_READING;
 
+  /* (Re)starting the SPI in case it has been reprogrammed externally, it can
+     happen if the SPI bus is shared among multiple peripherals.*/
   spiStart(mmcp->config->spip, mmcp->config->hscfg);
   spiSelect(mmcp->config->spip);
 
-  if(mmcp->block_addresses)
+  if (mmcp->block_addresses)
     send_hdr(mmcp, MMCSD_CMD_READ_MULTIPLE_BLOCK, startblk);
   else
     send_hdr(mmcp, MMCSD_CMD_READ_MULTIPLE_BLOCK, startblk * MMCSD_BLOCK_SIZE);
 
   if (recvr1(mmcp) != 0x00) {
-    spiUnselect(mmcp->config->spip);
-    chSysLock();
-    if (mmcp->state == MMC_READING)
-      mmcp->state = MMC_READY;
-    chSysUnlock();
-    return TRUE;
+    spiStop(mmcp->config->spip);
+    return CH_FAILED;
   }
-  return FALSE;
+  return CH_SUCCESS;
 }
 
 /**
@@ -675,8 +611,8 @@ bool_t mmcStartSequentialRead(MMCDriver *mmcp, uint32_t startblk) {
  * @param[out] buffer   pointer to the read buffer
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
@@ -685,12 +621,8 @@ bool_t mmcSequentialRead(MMCDriver *mmcp, uint8_t *buffer) {
 
   chDbgCheck((mmcp != NULL) && (buffer != NULL), "mmcSequentialRead");
 
-  chSysLock();
-  if (mmcp->state != MMC_READING) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_READING)
+    return CH_FAILED;
 
   for (i = 0; i < MMC_WAIT_DATA; i++) {
     spiReceive(mmcp->config->spip, 1, buffer);
@@ -698,16 +630,13 @@ bool_t mmcSequentialRead(MMCDriver *mmcp, uint8_t *buffer) {
       spiReceive(mmcp->config->spip, MMCSD_BLOCK_SIZE, buffer);
       /* CRC ignored. */
       spiIgnore(mmcp->config->spip, 2);
-      return FALSE;
+      return CH_SUCCESS;
     }
   }
   /* Timeout.*/
   spiUnselect(mmcp->config->spip);
-  chSysLock();
-  if (mmcp->state == MMC_READING)
-    mmcp->state = MMC_READY;
-  chSysUnlock();
-  return TRUE;
+  spiStop(mmcp->config->spip);
+  return CH_FAILED;
 }
 
 /**
@@ -716,37 +645,29 @@ bool_t mmcSequentialRead(MMCDriver *mmcp, uint8_t *buffer) {
  * @param[in] mmcp      pointer to the @p MMCDriver object
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcStopSequentialRead(MMCDriver *mmcp) {
   static const uint8_t stopcmd[] = {0x40 | MMCSD_CMD_STOP_TRANSMISSION,
                                     0, 0, 0, 0, 1, 0xFF};
-  bool_t result;
 
   chDbgCheck(mmcp != NULL, "mmcStopSequentialRead");
 
-  chSysLock();
-  if (mmcp->state != MMC_READING) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_READING)
+    return CH_FAILED;
 
   spiSend(mmcp->config->spip, sizeof(stopcmd), stopcmd);
 /*  result = recvr1(mmcp) != 0x00;*/
   /* Note, ignored r1 response, it can be not zero, unknown issue.*/
-  recvr1(mmcp);
-  result = FALSE;
-  spiUnselect(mmcp->config->spip);
+  (void) recvr1(mmcp);
 
-  chSysLock();
-  if (mmcp->state == MMC_READING)
-    mmcp->state = MMC_READY;
-  chSysUnlock();
-  return result;
+  /* Read operation finished.*/
+  spiUnselect(mmcp->config->spip);
+  mmcp->state = BLK_READY;
+  return CH_SUCCESS;
 }
 
 /**
@@ -756,41 +677,33 @@ bool_t mmcStopSequentialRead(MMCDriver *mmcp) {
  * @param[in] startblk  first block to write
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcStartSequentialWrite(MMCDriver *mmcp, uint32_t startblk) {
 
   chDbgCheck(mmcp != NULL, "mmcStartSequentialWrite");
+  chDbgAssert(mmcp->state == BLK_READY,
+              "mmcStartSequentialWrite(), #1", "invalid state");
 
-  chSysLock();
-  if (mmcp->state != MMC_READY) {
-    chSysUnlock();
-    return TRUE;
-  }
-  mmcp->state = MMC_WRITING;
-  chSysUnlock();
+  /* Write operation in progress.*/
+  mmcp->state = BLK_WRITING;
 
   spiStart(mmcp->config->spip, mmcp->config->hscfg);
   spiSelect(mmcp->config->spip);
-  if(mmcp->block_addresses)
+  if (mmcp->block_addresses)
     send_hdr(mmcp, MMCSD_CMD_WRITE_MULTIPLE_BLOCK, startblk);
   else
     send_hdr(mmcp, MMCSD_CMD_WRITE_MULTIPLE_BLOCK,
              startblk * MMCSD_BLOCK_SIZE);
 
-
   if (recvr1(mmcp) != 0x00) {
-    spiUnselect(mmcp->config->spip);
-    chSysLock();
-    if (mmcp->state == MMC_WRITING)
-      mmcp->state = MMC_READY;
-    chSysUnlock();
-    return TRUE;
+    spiStop(mmcp->config->spip);
+    return CH_FAILED;
   }
-  return FALSE;
+  return CH_SUCCESS;
 }
 
 /**
@@ -800,8 +713,8 @@ bool_t mmcStartSequentialWrite(MMCDriver *mmcp, uint32_t startblk) {
  * @param[out] buffer   pointer to the write buffer
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
@@ -811,12 +724,8 @@ bool_t mmcSequentialWrite(MMCDriver *mmcp, const uint8_t *buffer) {
 
   chDbgCheck((mmcp != NULL) && (buffer != NULL), "mmcSequentialWrite");
 
-  chSysLock();
-  if (mmcp->state != MMC_WRITING) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_WRITING)
+    return CH_FAILED;
 
   spiSend(mmcp->config->spip, sizeof(start), start);    /* Data prologue.   */
   spiSend(mmcp->config->spip, MMCSD_BLOCK_SIZE, buffer);/* Data.            */
@@ -824,16 +733,13 @@ bool_t mmcSequentialWrite(MMCDriver *mmcp, const uint8_t *buffer) {
   spiReceive(mmcp->config->spip, 1, b);
   if ((b[0] & 0x1F) == 0x05) {
     wait(mmcp);
-    return FALSE;
+    return CH_SUCCESS;
   }
 
   /* Error.*/
   spiUnselect(mmcp->config->spip);
-  chSysLock();
-  if (mmcp->state == MMC_WRITING)
-    mmcp->state = MMC_READY;
-  chSysUnlock();
-  return TRUE;
+  spiStop(mmcp->config->spip);
+  return CH_FAILED;
 }
 
 /**
@@ -842,8 +748,8 @@ bool_t mmcSequentialWrite(MMCDriver *mmcp, const uint8_t *buffer) {
  * @param[in] mmcp      pointer to the @p MMCDriver object
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
@@ -852,24 +758,15 @@ bool_t mmcStopSequentialWrite(MMCDriver *mmcp) {
 
   chDbgCheck(mmcp != NULL, "mmcStopSequentialWrite");
 
-  chSysLock();
-  if (mmcp->state != MMC_WRITING) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_WRITING)
+    return CH_FAILED;
 
   spiSend(mmcp->config->spip, sizeof(stop), stop);
   spiUnselect(mmcp->config->spip);
 
-  chSysLock();
-  if (mmcp->state == MMC_WRITING) {
-    mmcp->state = MMC_READY;
-    chSysUnlock();
-    return FALSE;
-  }
-  chSysUnlock();
-  return TRUE;
+  /* Write operation finished.*/
+  mmcp->state = BLK_READY;
+  return CH_SUCCESS;
 }
 
 /**
@@ -878,8 +775,8 @@ bool_t mmcStopSequentialWrite(MMCDriver *mmcp) {
  * @param[in] mmcp      pointer to the @p MMCDriver object
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
@@ -887,16 +784,11 @@ bool_t mmcSync(MMCDriver *mmcp) {
 
   chDbgCheck(mmcp != NULL, "mmcSync");
 
-  chSysLock();
-  if (mmcp->state != MMC_READY) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_READY)
+    return CH_FAILED;
 
   sync(mmcp);
-
-  return FALSE;
+  return CH_SUCCESS;
 }
 
 /**
@@ -906,27 +798,22 @@ bool_t mmcSync(MMCDriver *mmcp) {
  * @param[out] bdip     pointer to a @p BlockDeviceInfo structure
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
 bool_t mmcGetInfo(MMCDriver *mmcp, BlockDeviceInfo *bdip) {
 
-
   chDbgCheck((mmcp != NULL) && (bdip != NULL), "mmcGetInfo");
 
-  chSysLock();
-  if (mmcp->state != MMC_READY) {
-    chSysUnlock();
-    return TRUE;
-  }
-  chSysUnlock();
+  if (mmcp->state != BLK_READY)
+    return CH_FAILED;
 
   bdip->blk_num  = mmcp->capacity;
   bdip->blk_size = MMCSD_BLOCK_SIZE;
 
-  return FALSE;
+  return CH_SUCCESS;
 }
 
 /**
@@ -937,8 +824,8 @@ bool_t mmcGetInfo(MMCDriver *mmcp, BlockDeviceInfo *bdip) {
  * @param[in] endblk    ending block number
  *
  * @return              The operation status.
- * @retval FALSE        the operation succeeded.
- * @retval TRUE         the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
@@ -946,18 +833,28 @@ bool_t mmcErase(MMCDriver *mmcp, uint32_t startblk, uint32_t endblk) {
 
   chDbgCheck((mmcp != NULL), "mmcErase");
 
+  /* Handling command differences between HC and normal cards.*/
+  if (!mmcp->block_addresses) {
+    startblk *= MMCSD_BLOCK_SIZE;
+    endblk *= MMCSD_BLOCK_SIZE;
+  }
+
   if (send_command_R1(mmcp, MMCSD_CMD_ERASE_RW_BLK_START, startblk))
-    return TRUE;
+    goto failed;
 
   if (send_command_R1(mmcp, MMCSD_CMD_ERASE_RW_BLK_END, endblk))
-    return TRUE;
+    goto failed;
 
   if (send_command_R1(mmcp, MMCSD_CMD_ERASE, 0))
-    return TRUE;
+    goto failed;
 
-  return FALSE;
+  return CH_SUCCESS;
+
+  /* Command failed, state reset to BLK_ACTIVE.*/
+failed:
+  spiStop(mmcp->config->spip);
+  return CH_FAILED;
 }
-
 
 #endif /* HAL_USE_MMC_SPI */
 
