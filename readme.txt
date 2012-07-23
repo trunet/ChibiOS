@@ -79,9 +79,28 @@
 *****************************************************************************
 
 *** 2.4.2 ***
+- FIX: Fixed problem in STM32 DMA1 stream1 IRQ handler (bug 3538468).
+- FIX: Fixed wrong priority assigned to TIM8 in STM32 ICU driver (bug 3536950).
+- FIX: Fixed TIM8 not working in STM32 GPT driver (bug 3536523).
+- FIX: Fixed timer overflow not working in STM32 ICU driver for TIM1/TIM8 (bug
+  3536522).
+- FIX: Fixed wrong DMA channels on USART2 in STM32F10X_MD_VL devices (bug
+  3536070).
+- FIX: Fixed issue with DMA channel init in STM32 ADC and SPI drivers (bug
+  3535938).
+- FIX: Fixed unreliable PHY initialization (bug 3534819)(backported to 2.4.2).
+- FIX: Fixed wrong ADC callback buffer pointer in ADC driver (bug 3534767).
+- FIX: Fixed lwIP-related files missing from version 2.4.1 (bug 3533887).
+- FIX: Fixed problem with arm-v6m and state checker (bug 3532591).
+- FIX: Fixed wrong MAC divider setting in STM32 MAC driver (bug 3531290).
+- FIX: Fixed wrong MCO1 divider in STM32F2/F4 HAL (bug 3531289).
+- FIX: Fixed missing "break" in AVR PAL driver (bug 3530924).
 - FIX: Fixed timeout related race condition in STM32 I2C driver (bug 3530043).
 - FIX: Fixed wrong macro check in STM32 MAC driver (bug 3527179).
 - FIX: Fixed error in STM32L-Discovery board.h file (bug 3526918).
+- NEW: Validated CAN driver on STM32F2/F4.
+- Small fixes to the STM32F4 board files.
+- Various documentation fixes and improvements.
 
 *** 2.4.1 ***
 - FIX: Fixed inconsistent LPCxxx Internal RC oscillator names (bug 3524138).
