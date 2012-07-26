@@ -63,6 +63,8 @@
 #define GPIOA_TIM2_CH2          1
 #define GPIOA_USART2_TX         2
 #define GPIOA_USART2_RX         3
+#define GPIOA_SWDIO             13
+#define GPIOA_SWCLK             14
 
 #define GPIOB_SCL               6
 #define GPIOB_SDA               7
@@ -118,8 +120,8 @@
                                      PIN_MODE_INPUT(10) |                  \
                                      PIN_MODE_INPUT(11) |                  \
                                      PIN_MODE_INPUT(12) |                  \
-                                     PIN_MODE_INPUT(13) |                  \
-                                     PIN_MODE_INPUT(14) |                  \
+        	                     PIN_MODE_ALTERNATE(GPIOA_SWDIO) |     \
+	                             PIN_MODE_ALTERNATE(GPIOA_SWCLK) |     \
                                      PIN_MODE_INPUT(15))
 #define VAL_GPIOA_OTYPER            0x00000000
 #define VAL_GPIOA_OSPEEDR           0xFFFFFFFF
@@ -136,15 +138,16 @@
                                      PIN_PUDR_PULLUP(10) | \
                                      PIN_PUDR_PULLUP(11) | \
                                      PIN_PUDR_PULLUP(12) | \
-                                     PIN_PUDR_PULLUP(13) | \
-                                     PIN_PUDR_PULLUP(14) | \
+        	                     PIN_PUDR_PULLUP(GPIOA_SWDIO) |   \
+	                             PIN_PUDR_PULLDOWN(GPIOA_SWCLK) | \
                                      PIN_PUDR_PULLUP(15))
 #define VAL_GPIOA_ODR               0xFFFFFFFF
 #define VAL_GPIOA_AFRL              (PIN_AFIO_AF(GPIOA_TIM2_CH1, 1) |  \
 				     PIN_AFIO_AF(GPIOA_TIM2_CH2, 1) |  \
 				     PIN_AFIO_AF(GPIOA_USART2_TX, 7) | \
 				     PIN_AFIO_AF(GPIOA_USART2_RX, 7))
-#define VAL_GPIOA_AFRH              0x00000000
+#define VAL_GPIOA_AFRH              (PIN_AFIO_AF(GPIOA_SWDIO, 0) |     \
+	                             PIN_AFIO_AF(GPIOA_SWCLK, 0))
 
 /*
  * Port B setup.
