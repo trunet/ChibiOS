@@ -243,6 +243,49 @@
                                      PIN_AFIO_AF(GPIOC_TIM3_CH4, 2) |  \
                                      PIN_AFIO_AF(GPIOC_USART3_TX, 7) | \
                                      PIN_AFIO_AF(GPIOC_USART3_RX, 7))
+
+/*
+ * Port D setup.
+ * All input with pull-up except:
+ */
+#define VAL_GPIOD_MODER             (PIN_MODE_INPUT(0) |                    \
+                                     PIN_MODE_INPUT(1) |                    \
+                                     PIN_MODE_INPUT(2) |                    \
+                                     PIN_MODE_INPUT(3) |                    \
+                                     PIN_MODE_INPUT(4) |                    \
+                                     PIN_MODE_INPUT(5) |                    \
+                                     PIN_MODE_INPUT(6) |                    \
+                                     PIN_MODE_INPUT(7) |                    \
+                                     PIN_MODE_INPUT(8) |                    \
+                                     PIN_MODE_INPUT(9) |                    \
+                                     PIN_MODE_INPUT(10) |                   \
+                                     PIN_MODE_INPUT(11) |                   \
+                                     PIN_MODE_INPUT(12) |                   \
+                                     PIN_MODE_INPUT(13) |                   \
+                                     PIN_MODE_INPUT(14) |                   \
+                                     PIN_MODE_INPUT(15))
+#define VAL_GPIOD_OTYPER            0x00000000
+#define VAL_GPIOD_OSPEEDR           0xFFFFFFFF
+#define VAL_GPIOD_PUPDR             (PIN_PUDR_PULLUP(0) |                   \
+                                     PIN_PUDR_PULLUP(1) |                   \
+                                     PIN_PUDR_PULLUP(2) |                   \
+                                     PIN_PUDR_PULLUP(3) |                   \
+                                     PIN_PUDR_PULLUP(4) |                   \
+                                     PIN_PUDR_PULLUP(5) |                   \
+                                     PIN_PUDR_PULLUP(6) |                   \
+                                     PIN_PUDR_PULLUP(7) |                   \
+                                     PIN_PUDR_PULLUP(8) |                   \
+                                     PIN_PUDR_PULLUP(9) |                   \
+                                     PIN_PUDR_PULLUP(10) |                  \
+                                     PIN_PUDR_PULLUP(11) |                  \
+                                     PIN_PUDR_PULLUP(12) |                  \
+                                     PIN_PUDR_PULLUP(13) |                  \
+                                     PIN_PUDR_PULLUP(14) |                  \
+                                     PIN_PUDR_PULLUP(15))
+#define VAL_GPIOD_ODR               0xFFFFFFFF
+#define VAL_GPIOD_AFRL              0x00000000
+#define VAL_GPIOD_AFRH              0x00000000
+
 /*
  * Port H setup.
  * All input with pull-up except:
