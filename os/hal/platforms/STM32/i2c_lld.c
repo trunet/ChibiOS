@@ -212,11 +212,14 @@ static void i2c_lld_set_clock(I2CDriver *i2cp) {
                 "Invalid standard mode duty cycle");
 
     /* Standard mode clock_div calculate: Tlow/Thigh = 1/1.*/
+    chDbgAssert((STM32_PCLK1 % (clock_speed * 2)) == 0,
+                "i2c_lld_set_clock(), #2",
+                "PCLK1 must be divided without remainder");
     clock_div = (uint16_t)(STM32_PCLK1 / (clock_speed * 2));
 
-    /* Clock divider values under four are not allowed.*/
-    if (clock_div < 0x04)
-      clock_div = 0x04;
+    chDbgAssert(clock_div >= 0x04,
+                "i2c_lld_set_clock(), #3",
+                "Clock divider less then 0x04 not allowed");
     regCCR |= (clock_div & I2C_CCR_CCR);
 
     /* Sets the Maximum Rise Time for standard mode.*/
@@ -225,21 +228,28 @@ static void i2c_lld_set_clock(I2CDriver *i2cp) {
   else if (clock_speed <= 400000) {
     /* Configure clock_div in fast mode.*/
     chDbgAssert((duty == FAST_DUTY_CYCLE_2) || (duty == FAST_DUTY_CYCLE_16_9),
-                "i2c_lld_set_clock(), #2",
+                "i2c_lld_set_clock(), #4",
                 "Invalid fast mode duty cycle");
 
     if (duty == FAST_DUTY_CYCLE_2) {
       /* Fast mode clock_div calculate: Tlow/Thigh = 2/1.*/
+      chDbgAssert((STM32_PCLK1 % (clock_speed * 3)) == 0,
+                  "i2c_lld_set_clock(), #5",
+                  "PCLK1 must be divided without remainder");
       clock_div = (uint16_t)(STM32_PCLK1 / (clock_speed * 3));
     }
     else if (duty == FAST_DUTY_CYCLE_16_9) {
       /* Fast mode clock_div calculate: Tlow/Thigh = 16/9.*/
+      chDbgAssert((STM32_PCLK1 % (clock_speed * 25)) == 0,
+                  "i2c_lld_set_clock(), #6",
+                  "PCLK1 must be divided without remainder");
       clock_div = (uint16_t)(STM32_PCLK1 / (clock_speed * 25));
       regCCR |= I2C_CCR_DUTY;
     }
-    /* Clock divider values under one are not allowed.*/
-    if (clock_div < 0x01)
-      clock_div = 0x01;
+
+    chDbgAssert(clock_div >= 0x01,
+                    "i2c_lld_set_clock(), #7",
+                    "Clock divider less then 0x04 not allowed");
     regCCR |= (I2C_CCR_FS | (clock_div & I2C_CCR_CCR));
 
     /* Sets the Maximum Rise Time for fast mode.*/
@@ -247,7 +257,7 @@ static void i2c_lld_set_clock(I2CDriver *i2cp) {
   }
 
   chDbgAssert((clock_div <= I2C_CCR_CCR),
-              "i2c_lld_set_clock(), #3", "the selected clock is too low");
+              "i2c_lld_set_clock(), #8", "the selected clock is too low");
 
   dp->CCR = regCCR;
 }
@@ -281,31 +291,6 @@ static void i2c_lld_set_opmode(I2CDriver *i2cp) {
 }
 
 /**
- * @brief   Return the last event value from I2C status registers.
- * @details Important but implicit destination of this function is
- *          clearing interrupts flags.
- * @note    Internal use only.
- *
- * @param[in] i2cp      pointer to the @p I2CDriver object
- *
- * @notapi
- */
-static uint32_t i2c_get_event(I2CDriver *i2cp) {
-  I2C_TypeDef *dp = i2cp->i2c;
-  uint16_t regSR1 = dp->SR1;
-  uint16_t regSR2 = dp->SR2;
-
-#if CH_DBG_ENABLE_ASSERTS
-  dbgSR1 = regSR1;
-  dbgSR2 = regSR2;
-  dbgCR1 = dp->CR1;
-  dbgCR2 = dp->CR2;
-#endif /* CH_DBG_ENABLE_ASSERTS */
-
-  return (I2C_EV_MASK & (regSR1 | (regSR2 << 16)));
-}
-
-/**
  * @brief   I2C shared ISR code.
  *
  * @param[in] i2cp      pointer to the @p I2CDriver object
@@ -314,11 +299,13 @@ static uint32_t i2c_get_event(I2CDriver *i2cp) {
  */
 static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
   I2C_TypeDef *dp = i2cp->i2c;
+  uint32_t regSR = dp->SR2;
+  uint32_t event = dp->SR1;
 
   /* Interrupts are disabled just before dmaStreamEnable() because there
      is no need of interrupts until next transaction begin. All the work is
      done by the DMA.*/
-  switch (i2c_get_event(i2cp)) {
+  switch (I2C_EV_MASK & (event | (regSR << 16))) {
   case I2C_EV5_MASTER_MODE_SELECT:
     dp->DR = i2cp->addr;
     break;
@@ -326,6 +313,8 @@ static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
     dp->CR2 &= ~I2C_CR2_ITEVTEN;
     dmaStreamEnable(i2cp->dmarx);
     dp->CR2 |= I2C_CR2_LAST;                 /* Needed in receiver mode. */
+    if (dmaStreamGetTransactionSize(i2cp->dmarx) < 2)
+      dp->CR1 &= ~I2C_CR1_ACK;
     break;
   case I2C_EV6_MASTER_TRA_MODE_SELECTED:
     dp->CR2 &= ~I2C_CR2_ITEVTEN;
@@ -346,6 +335,9 @@ static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
   default:
     break;
   }
+  /* Clear ADDR flag. */
+  if (event & (I2C_SR1_ADDR | I2C_SR1_ADD10))
+    (void)dp->SR2;
 }
 
 /**
@@ -776,7 +768,9 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
   I2C_TypeDef *dp = i2cp->i2c;
   VirtualTimer vt;
 
+#if defined(STM32F1XX_I2C)
   chDbgCheck((rxbytes > 1), "i2c_lld_master_receive_timeout");
+#endif
 
   /* Global timeout for the whole operation.*/
   if (timeout != TIME_INFINITE)
@@ -797,7 +791,7 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
      is completed, alternatively for a timeout condition.*/
   while ((dp->SR2 & I2C_SR2_BUSY) || (dp->CR1 & I2C_CR1_STOP)) {
     chSysLock();
-    if (!chVTIsArmedI(&vt))
+    if ((timeout != TIME_INFINITE) && !chVTIsArmedI(&vt))
       return RDY_TIMEOUT;
     chSysUnlock();
   }
@@ -807,7 +801,7 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
 
   /* Atomic check on the timer in order to make sure that a timeout didn't
      happen outside the critical zone.*/
-  if (!chVTIsArmedI(&vt))
+  if ((timeout != TIME_INFINITE) && !chVTIsArmedI(&vt))
     return RDY_TIMEOUT;
 
   /* Starts the operation.*/
@@ -817,7 +811,7 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
   /* Waits for the operation completion or a timeout.*/
   i2cp->thread = chThdSelf();
   chSchGoSleepS(THD_STATE_SUSPENDED);
-  if (chVTIsArmedI(&vt))
+  if ((timeout != TIME_INFINITE) && chVTIsArmedI(&vt))
     chVTResetI(&vt);
 
   return chThdSelf()->p_u.rdymsg;
@@ -855,8 +849,10 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   I2C_TypeDef *dp = i2cp->i2c;
   VirtualTimer vt;
 
+#if defined(STM32F1XX_I2C)
   chDbgCheck(((rxbytes == 0) || ((rxbytes > 1) && (rxbuf != NULL))),
              "i2c_lld_master_transmit_timeout");
+#endif
 
   /* Global timeout for the whole operation.*/
   if (timeout != TIME_INFINITE)
@@ -881,7 +877,7 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
      is completed, alternatively for a timeout condition.*/
   while ((dp->SR2 & I2C_SR2_BUSY) || (dp->CR1 & I2C_CR1_STOP)) {
     chSysLock();
-    if (!chVTIsArmedI(&vt))
+    if ((timeout != TIME_INFINITE) && !chVTIsArmedI(&vt))
       return RDY_TIMEOUT;
     chSysUnlock();
   }
@@ -891,7 +887,7 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
 
   /* Atomic check on the timer in order to make sure that a timeout didn't
      happen outside the critical zone.*/
-  if (!chVTIsArmedI(&vt))
+  if ((timeout != TIME_INFINITE) && !chVTIsArmedI(&vt))
     return RDY_TIMEOUT;
 
   /* Starts the operation.*/
@@ -901,7 +897,7 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   /* Waits for the operation completion or a timeout.*/
   i2cp->thread = chThdSelf();
   chSchGoSleepS(THD_STATE_SUSPENDED);
-  if (chVTIsArmedI(&vt))
+  if ((timeout != TIME_INFINITE) && chVTIsArmedI(&vt))
     chVTResetI(&vt);
 
   return chThdSelf()->p_u.rdymsg;

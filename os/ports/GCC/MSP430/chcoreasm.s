@@ -25,34 +25,41 @@
     for full details of how and when the exception can be applied.
 */
 
-#include "ch.h"
-#include "hal.h"
+        .text
+        .p2align 1, 0
+        .weak   _port_switch
+_port_switch:
+         push    r11
+         push    r10
+         push    r9
+         push    r8
+         push    r7
+         push    r6
+         push    r5
+         push    r4
+         mov r1, 6(r14)
+         mov 6(r15), r1
+         pop     r4
+         pop     r5
+         pop     r6
+         pop     r7
+         pop     r8
+         pop     r9
+         pop     r10
+         pop     r11
+         ret
 
-#include "i2c_pns.h"
-#include "lis3.h"
+        .p2align 1, 0
+        .weak   _port_thread_start
+_port_thread_start:
+         eint
+         mov     r11, r15
+         call    r10
+         call    #chThdExit
+         ; Falls into _port_halt
 
-
-/* I2C1 */
-static const I2CConfig i2cfg1 = {
-    OPMODE_I2C,
-    400000,
-    FAST_DUTY_CYCLE_2,
-};
-
-
-
-void I2CInit_pns(void){
-  i2cInit();
-
-  i2cStart(&I2CD1, &i2cfg1);
-
-  /* tune ports for I2C1*/
-  palSetPadMode(IOPORT2, 6, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
-  palSetPadMode(IOPORT2, 7, PAL_MODE_STM32_ALTERNATE_OPENDRAIN);
-
-  /* startups. Pauses added just to be safe */
-  chThdSleepMilliseconds(100);
-  init_lis3();
-}
-
-
+        .p2align 1, 0
+        .weak   _port_halt
+_port_halt:
+        dint
+.L1:    jmp     .L1
