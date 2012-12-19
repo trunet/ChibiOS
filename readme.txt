@@ -78,6 +78,58 @@
 *** Releases                                                              ***
 *****************************************************************************
 
+*** 2.4.3 ***
+- FIX: Fixed typo in chOQGetEmptyI() macro (bug 3595910).
+- FIX: Fixed possible false detect of loaded prescaler in RTCv1 driver (bug 
+  3595489).
+- FIX: Fixed unneeded RTC initialization when HAL_USE_RTC disabled
+  (bug 3594620).
+- FIX: Fixed compilation issue with HAL_USE_RTC disabled (bug 3594083).
+- FIX: Fixed wasting of BKP registers in RTCv1 driver (bug 3594005).
+- FIX: Fixed potential problem with RTC_CRL_RSF bit (bug 3593972).
+- FIX: Fixed STM32F1x rtc_lld_init not functional (bug 3592817).
+- FIX: Fixed DMA reconfiguration problem in STM32 SPI driver (bug 3592809).
+- FIX: Fixed STM32 UART driver redundant initialization (bug 3592764).
+- FIX: Fixed wrong stack initializations in GCC STM32L1xx port files (bug
+  3591321).
+- FIX: Fixed different redefinition for __main_stack_end__ symbol (bug
+  3591317).
+- FIX: Fixed errors in STM32F0xx UART driver (bug 3589412).
+- FIX: Fixed MSP430 port_switch code for MSPGCC issue (bug 3587633).
+- FIX: Fixed workaround for errata in STM32F4-A devices (bug 3586425).
+- FIX: Fixed error in palWritePad() macro (bug 3586230).
+- FIX: Fixed missing ; in testmbox.c (bug 3585979).
+- FIX: Fixed STM32_P407: implement mmc_lld_is_card_inserted (bug 3581929).
+- FIX: Fixed double chSysInit() call in MSP430F1611 demo (bug 3581304).
+- FIX: Fixed bug in abstract file interface (bug 3579660).
+- FIX: Fixed various typos and wrong limits in the STM32F4/F2 HAL driver
+  (bug 3578944).
+- FIX: Fixed ARM CMx crt0.c fails at low optimization levels (bug 3578927).
+- FIX: Fixed compilation issue in syscalls.c (bug 3576771).
+- FIX: Fixed superfluous pack #defines cause nasty warning (bug 3575662).
+- FIX: Fixed mac.c won't compile due to misplaced declarations (bug 3575657).
+- FIX: Fixed STM32F4 ADC prescaler incorrectly initialized (bug 3575297).
+- FIX: Fixed RCC_APB2ENR_IOPEEN undeclared on STM32F10X_LD_VL devices (bug
+  3575098).
+- FIX: Fixed optimization disable (-O0) breaks kernel in CortexM/RVCT (bug
+  3573123).
+- FIX: Fixed misplaced declarations in lwip_bindings sys_arch.c (bug 3571053).
+- FIX: Fixed FatFS won't compile with _FS_REENTRANT enabled (bug 3570135).
+- FIX: Fixed mmc_spi.c won't compile due to misplaced declaration (bug
+  3570035).
+- FIX: Fixed GPIO glitch during PAL initialization (bug 3569347).
+- FIX: Fixed STM32F1x rtc_lld_init glitches rtc on hard reset (bug 3567597).
+- FIX: Fixed STM8L, cosmic compiler: c_lreg not saved (bug 3566342).
+- FIX: Fixed anomaly in USB enumeration (bug 3565325).
+- FIX: Fixed problem with lwIP statistics (bug 3564134).
+- FIX: Fixed packed structures macros not functional in IAR and RVCT port
+  (bug 3561279).
+- FIX: Fixed Problem in FatFs demos related to LFN (bug 3560980).
+- NEW: I2C workaround allowing to read single byte on all STM32 platforms 
+  except STM32F1xx.
+- NEW: Small andjustment in chcore.h files under ./os/ports/GCC required by a
+  difference in GCC 4.7.x.
+
 *** 2.4.2 ***
 - FIX: Fixed problem in STM32 DMA1 stream1 IRQ handler (bug 3538468).
 - FIX: Fixed wrong priority assigned to TIM8 in STM32 ICU driver (bug 3536950).
@@ -88,7 +140,7 @@
   3536070).
 - FIX: Fixed issue with DMA channel init in STM32 ADC and SPI drivers (bug
   3535938).
-- FIX: Fixed unreliable PHY initialization (bug 3534819)(backported to 2.4.2).
+- FIX: Fixed unreliable PHY initialization (bug 3534819).
 - FIX: Fixed wrong ADC callback buffer pointer in ADC driver (bug 3534767).
 - FIX: Fixed lwIP-related files missing from version 2.4.1 (bug 3533887).
 - FIX: Fixed problem with arm-v6m and state checker (bug 3532591).
@@ -441,6 +493,7 @@
 - FIX: Fixed misspelled word in some chioch.h and chstreams.h macros (bug
   3031534).
 - FIX: Fixed wrong macro check in the STM32 SPI driver (bug 3028562).
+
 
 *** 2.0.2 ***
 - FIX: Fixed invalid context restore in MSP430 port (bug 3027975).

@@ -27,20 +27,61 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "test.h"
 
 /*
- * Red LEDs blinker thread, times are in milliseconds.
+ * Internal loopback mode, 500KBaud, automatic wakeup, automatic recover
+ * from abort mode.
+ * See section 22.7.7 on the STM32 reference manual.
  */
-static WORKING_AREA(waThread1, 64);
-static msg_t Thread1(void *arg) {
+static const CANConfig cancfg = {
+  CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
+  CAN_BTR_LBKM | CAN_BTR_SJW(0) | CAN_BTR_TS2(1) |
+  CAN_BTR_TS1(8) | CAN_BTR_BRP(6),
+  0,
+  NULL
+};
 
-  (void)arg;
-  chRegSetThreadName("blinker");
-  while (TRUE) {
-    palSetPad(IOPORT6, P6_O_LED);
-    chThdSleepMilliseconds(500);
-    palClearPad(IOPORT6, P6_O_LED);
+/*
+ * Receiver thread.
+ */
+static WORKING_AREA(can_rx_wa, 256);
+static msg_t can_rx(void *p) {
+  EventListener el;
+  CANRxFrame rxmsg;
+
+  (void)p;
+  chRegSetThreadName("receiver");
+  chEvtRegister(&CAND1.rxfull_event, &el, 0);
+  while(!chThdShouldTerminate()) {
+    if (chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(100)) == 0)
+      continue;
+    while (canReceive(&CAND1, &rxmsg, TIME_IMMEDIATE) == RDY_OK) {
+      /* Process message.*/
+      palTogglePad(GPIOD, GPIOD_LED5);
+    }
+  }
+  chEvtUnregister(&CAND1.rxfull_event, &el);
+  return 0;
+}
+
+/*
+ * Transmitter thread.
+ */
+static WORKING_AREA(can_tx_wa, 256);
+static msg_t can_tx(void * p) {
+  CANTxFrame txmsg;
+
+  (void)p;
+  chRegSetThreadName("transmitter");
+  txmsg.IDE = CAN_IDE_EXT;
+  txmsg.EID = 0x01234567;
+  txmsg.RTR = CAN_RTR_DATA;
+  txmsg.DLC = 8;
+  txmsg.data32[0] = 0x55AA55AA;
+  txmsg.data32[1] = 0x00FF00FF;
+
+  while (!chThdShouldTerminate()) {
+    canTransmit(&CAND1, &txmsg, MS2ST(100));
     chThdSleepMilliseconds(500);
   }
   return 0;
@@ -62,22 +103,20 @@ int main(void) {
   chSysInit();
 
   /*
-   * Activates the serial driver 1 using the driver default configuration.
+   * Activates the CAN driver 1.
    */
-  sdStart(&SD1, NULL);
+  canStart(&CAND1, &cancfg);
 
   /*
-   * Creates the blinker thread.
+   * Starting the transmitter and receiver threads.
    */
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
+  chThdCreateStatic(can_rx_wa, sizeof(can_rx_wa), NORMALPRIO + 7, can_rx, NULL);
+  chThdCreateStatic(can_tx_wa, sizeof(can_tx_wa), NORMALPRIO + 7, can_tx, NULL);
 
   /*
-   * Normal main() thread activity, in this demo it does nothing except
-   * checking a button and run a test suite if button was pressed.
+   * Normal main() thread activity, in this demo it does nothing.
    */
   while (TRUE) {
-    if (!palReadPad(IOPORT6, P6_I_BUTTON))
-      TestThread(&SD1);
     chThdSleepMilliseconds(500);
   }
   return 0;
