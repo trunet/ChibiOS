@@ -80,7 +80,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_CAN_USE_CAN1) || defined(__DOXYGEN__)
-#define STM32_CAN_USE_CAN1                  TRUE
+#define STM32_CAN_USE_CAN1                  FALSE
 #endif
 
 /**
@@ -110,11 +110,6 @@
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
-
-/**
- * @brief   CAN status flags.
- */
-typedef uint32_t canstatus_t;
 
 /**
  * @brief   CAN transmission frame.
@@ -273,10 +268,6 @@ typedef struct {
    * @brief A CAN bus error happened.
    */
   EventSource               error_event;
-  /**
-   * @brief Error flags set when an error event is broadcasted.
-   */
-  canstatus_t               status;
 #if CAN_USE_SLEEP_MODE || defined (__DOXYGEN__)
   /**
    * @brief Entering sleep state event.

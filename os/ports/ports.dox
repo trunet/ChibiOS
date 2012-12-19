@@ -25,6 +25,13 @@
  */
 
 /**
+ * @defgroup port_common Common Code
+ * Code common to all compilers.
+ *
+ * @ingroup ports
+ */
+
+/**
  * @defgroup gcc GCC Ports
  * Ports for the GCC compiler or derivatives.
  *

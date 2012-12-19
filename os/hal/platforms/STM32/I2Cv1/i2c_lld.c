@@ -23,7 +23,7 @@
  */
 
 /**
- * @file    STM32/i2c_lld.c
+ * @file    STM32/I2Cv1/i2c_lld.c
  * @brief   STM32 I2C subsystem low level driver source.
  *
  * @addtogroup I2C
@@ -101,15 +101,6 @@ I2CDriver I2CD3;
 /*===========================================================================*/
 /* Driver local variables.                                                   */
 /*===========================================================================*/
-
-/* The following variables have debugging purpose only and are included when
-   the option CH_DBG_ENABLE_ASSERTS is enabled.*/
-#if CH_DBG_ENABLE_ASSERTS
-static volatile uint16_t dbgSR1;
-static volatile uint16_t dbgSR2;
-static volatile uint16_t dbgCR1;
-static volatile uint16_t dbgCR2;
-#endif /* CH_DBG_ENABLE_ASSERTS */
 
 /*===========================================================================*/
 /* Driver local functions.                                                   */
@@ -286,31 +277,6 @@ static void i2c_lld_set_opmode(I2CDriver *i2cp) {
 }
 
 /**
- * @brief   Return the last event value from I2C status registers.
- * @details Important but implicit destination of this function is
- *          clearing interrupts flags.
- * @note    Internal use only.
- *
- * @param[in] i2cp      pointer to the @p I2CDriver object
- *
- * @notapi
- */
-static uint32_t i2c_get_event(I2CDriver *i2cp) {
-  I2C_TypeDef *dp = i2cp->i2c;
-  uint16_t regSR1 = dp->SR1;
-  uint16_t regSR2 = dp->SR2;
-
-#if CH_DBG_ENABLE_ASSERTS
-  dbgSR1 = regSR1;
-  dbgSR2 = regSR2;
-  dbgCR1 = dp->CR1;
-  dbgCR2 = dp->CR2;
-#endif /* CH_DBG_ENABLE_ASSERTS */
-
-  return (I2C_EV_MASK & (regSR1 | (regSR2 << 16)));
-}
-
-/**
  * @brief   I2C shared ISR code.
  *
  * @param[in] i2cp      pointer to the @p I2CDriver object
@@ -319,11 +285,13 @@ static uint32_t i2c_get_event(I2CDriver *i2cp) {
  */
 static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
   I2C_TypeDef *dp = i2cp->i2c;
+  uint32_t regSR2 = dp->SR2;
+  uint32_t event = dp->SR1;
 
   /* Interrupts are disabled just before dmaStreamEnable() because there
      is no need of interrupts until next transaction begin. All the work is
      done by the DMA.*/
-  switch (i2c_get_event(i2cp)) {
+  switch (I2C_EV_MASK & (event | (regSR2 << 16))) {
   case I2C_EV5_MASTER_MODE_SELECT:
     dp->DR = i2cp->addr;
     break;
@@ -331,6 +299,8 @@ static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
     dp->CR2 &= ~I2C_CR2_ITEVTEN;
     dmaStreamEnable(i2cp->dmarx);
     dp->CR2 |= I2C_CR2_LAST;                 /* Needed in receiver mode. */
+    if (dmaStreamGetTransactionSize(i2cp->dmarx) < 2)
+      dp->CR1 &= ~I2C_CR1_ACK;
     break;
   case I2C_EV6_MASTER_TRA_MODE_SELECTED:
     dp->CR2 &= ~I2C_CR2_ITEVTEN;
@@ -351,6 +321,9 @@ static void i2c_lld_serve_event_interrupt(I2CDriver *i2cp) {
   default:
     break;
   }
+  /* Clear ADDR flag. */
+  if (event & (I2C_SR1_ADDR | I2C_SR1_ADD10))
+    (void)dp->SR2;
 }
 
 /**
@@ -754,8 +727,8 @@ void i2c_lld_stop(I2CDriver *i2cp) {
 
 /**
  * @brief   Receives data via the I2C bus as master.
- * @details Number of receiving bytes must be more than 1 because of stm32
- *          hardware restrictions.
+ * @details Number of receiving bytes must be more than 1 on STM32F1x. This is
+ *          hardware restriction.
  *
  * @param[in] i2cp      pointer to the @p I2CDriver object
  * @param[in] addr      slave device address
@@ -781,7 +754,9 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
   I2C_TypeDef *dp = i2cp->i2c;
   VirtualTimer vt;
 
+#if defined(STM32F1XX_I2C)
   chDbgCheck((rxbytes > 1), "i2c_lld_master_receive_timeout");
+#endif
 
   /* Global timeout for the whole operation.*/
   if (timeout != TIME_INFINITE)
@@ -830,8 +805,8 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
 
 /**
  * @brief   Transmits data via the I2C bus as master.
- * @details Number of receiving bytes must be 0 or more than 1 because of stm32
- *          hardware restrictions.
+ * @details Number of receiving bytes must be 0 or more than 1 on STM32F1x.
+ *          This is hardware restriction.
  *
  * @param[in] i2cp      pointer to the @p I2CDriver object
  * @param[in] addr      slave device address
@@ -860,8 +835,10 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   I2C_TypeDef *dp = i2cp->i2c;
   VirtualTimer vt;
 
+#if defined(STM32F1XX_I2C)
   chDbgCheck(((rxbytes == 0) || ((rxbytes > 1) && (rxbuf != NULL))),
              "i2c_lld_master_transmit_timeout");
+#endif
 
   /* Global timeout for the whole operation.*/
   if (timeout != TIME_INFINITE)

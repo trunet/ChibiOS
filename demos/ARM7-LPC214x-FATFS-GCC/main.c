@@ -154,6 +154,10 @@ static FRESULT scan_files(BaseSequentialStream *chp, char *path) {
   int i;
   char *fn;
 
+#if _USE_LFN
+  fno.lfname = 0;
+  fno.lfsize = 0;
+#endif
   res = f_opendir(&dir, path);
   if (res == FR_OK) {
     i = strlen(path);
@@ -170,7 +174,7 @@ static FRESULT scan_files(BaseSequentialStream *chp, char *path) {
         res = scan_files(chp, path);
         if (res != FR_OK)
           break;
-        path[i] = 0;
+        path[--i] = 0;
       }
       else {
         chprintf(chp, "%s/%s\r\n", path, fn);
@@ -323,7 +327,7 @@ int main(void) {
   chSysInit();
 
   /*
-   * Activates the serial driver 2 using the driver default configuration.
+   * Activates the serial driver 1 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
 

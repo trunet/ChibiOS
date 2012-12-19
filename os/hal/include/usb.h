@@ -69,6 +69,7 @@
 #define USB_DESCRIPTOR_DEVICE_QUALIFIER     6
 #define USB_DESCRIPTOR_OTHER_SPEED_CFG      7
 #define USB_DESCRIPTOR_INTERFACE_POWER      8
+#define USB_DESCRIPTOR_INTERFACE_ASSOCIATION 11
 
 #define USB_FEATURE_ENDPOINT_HALT           0
 #define USB_FEATURE_DEVICE_REMOTE_WAKEUP    1
@@ -157,6 +158,22 @@
   USB_DESC_BYTE(bInterfaceClass),                                           \
   USB_DESC_BYTE(bInterfaceSubClass),                                        \
   USB_DESC_BYTE(bInterfaceProtocol),                                        \
+  USB_DESC_INDEX(iInterface)
+
+/**
+ * @brief   Interface Association Descriptor helper macro.
+ */
+#define USB_DESC_INTERFACE_ASSOCIATION(bFirstInterface,                     \
+                           bInterfaceCount, bFunctionClass,                 \
+                           bFunctionSubClass, bFunctionProcotol,            \
+                           iInterface)                                      \
+  USB_DESC_BYTE(8),                                                         \
+  USB_DESC_BYTE(USB_DESCRIPTOR_INTERFACE_ASSOCIATION),                      \
+  USB_DESC_BYTE(bFirstInterface),                                           \
+  USB_DESC_BYTE(bInterfaceCount),                                           \
+  USB_DESC_BYTE(bFunctionClass),                                            \
+  USB_DESC_BYTE(bFunctionSubClass),                                         \
+  USB_DESC_BYTE(bFunctionProcotol),                                         \
   USB_DESC_INDEX(iInterface)
 
 /**
@@ -399,8 +416,6 @@ typedef const USBDescriptor * (*usbgetdescriptor_t)(USBDriver *usbp,
  * @details The received size can be different from the size specified in
  *          @p usbStartReceiveI() because the last packet could have a size
  *          different from the expected one.
- * @pre     The OUT endpoint must have been configured in transaction mode
- *          in order to use this function.
  *
  * @param[in] usbp      pointer to the @p USBDriver object
  * @param[in] ep        endpoint number
@@ -410,20 +425,6 @@ typedef const USBDescriptor * (*usbgetdescriptor_t)(USBDriver *usbp,
  */
 #define usbGetReceiveTransactionSizeI(usbp, ep)                             \
   usb_lld_get_transaction_size(usbp, ep)
-
-/**
- * @brief   Returns the exact size of a received packet.
- * @pre     The OUT endpoint must have been configured in packet mode
- *          in order to use this function.
- *
- * @param[in] usbp      pointer to the @p USBDriver object
- * @param[in] ep        endpoint number
- * @return              Received data size.
- *
- * @iclass
- */
-#define usbGetReceivePacketSizeI(usbp, ep)                                  \
-  usb_lld_get_packet_size(usbp, ep)
 
 /**
  * @brief   Request transfer setup.

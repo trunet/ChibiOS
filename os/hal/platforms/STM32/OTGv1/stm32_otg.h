@@ -30,15 +30,26 @@
 #define _STM32_OTG_H_
 
 /**
- * @brief   Number of the implemented endpoints.
+ * @brief   Number of the implemented endpoints in OTG_FS.
  * @details This value does not include the endpoint 0 that is always present.
  */
-#define STM32_OTG_ENDOPOINTS_NUMBER     3
+#define STM32_OTG1_ENDOPOINTS_NUMBER    3
 
 /**
- * @brief   FIFO memory size in words.
+ * @brief   Number of the implemented endpoints in OTG_HS.
+ * @details This value does not include the endpoint 0 that is always present.
  */
-#define STM32_OTG_FIFO_MEM_SIZE         384
+#define STM32_OTG2_ENDOPOINTS_NUMBER    5
+
+/**
+ * @brief   OTG_FS FIFO memory size in words.
+ */
+#define STM32_OTG1_FIFO_MEM_SIZE        384
+
+/**
+ * @brief   OTG_HS FIFO memory size in words.
+ */
+#define STM32_OTG2_FIFO_MEM_SIZE        1024
 
 /**
  * @brief   Host channel registers group.
@@ -171,6 +182,7 @@ typedef struct {
   volatile uint32_t PCGCCTL;    /**< @brief Power and clock gating control
                                             register.                       */
   volatile uint32_t resvdE04[127];
+  volatile uint32_t FIFO[16][1024];
 } stm32_otg_t;
 
 /**
@@ -211,6 +223,11 @@ typedef struct {
                                                  level.                     */
 #define GAHBCFG_TXFELVL         (1U<<7)     /**< Non-periodic TxFIFO empty
                                                  level.                     */
+#define GAHBCFG_DMAEN           (1U<<5)     /**< DMA enable (HS only).      */
+#define GAHBCFG_HBSTLEN_MASK    (15U<<1)    /**< Burst length/type mask (HS
+                                                 only).                     */
+#define GAHBCFG_HBSTLEN(n)      ((n)<<1)    /**< Burst length/type (HS
+                                                 only).                     */
 #define GAHBCFG_GINTMSK         (1U<<0)     /**< Global interrupt mask.     */
 /** @} */
 
@@ -409,6 +426,7 @@ typedef struct {
  * @name GCCFG register bit definitions
  * @{
  */
+#define GCCFG_NOVBUSSENS        (1U<<21)    /**< VBUS sensing disable.      */
 #define GCCFG_SOFOUTEN          (1U<<20)    /**< SOF output enable.         */
 #define GCCFG_VBUSBSEN          (1U<<19)    /**< Enable the VBUS sensing "B"
                                                  device.                    */
@@ -621,6 +639,9 @@ typedef struct {
 #define DCFG_NZLSOHSK           (1U<<2)     /**< Non-Zero-Length status
                                                  OUT handshake.             */
 #define DCFG_DSPD_MASK          (3U<<0)     /**< Device speed mask.         */
+#define DCFG_DSPD_HS            (0U<<0)     /**< High speed (USB 2.0).      */
+#define DCFG_DSPD_HS_FS         (1U<<0)     /**< High speed (USB 2.0) in FS
+                                                 mode.                      */
 #define DCFG_DSPD_FS11          (3U<<0)     /**< Full speed (USB 1.1
                                                  transceiver clock is 48
                                                  MHz).                      */
@@ -802,6 +823,14 @@ typedef struct {
 /** @} */
 
 /**
+ * @name DTXFSTS register bit definitions.
+ * @{
+ */
+#define DTXFSTS_INEPTFSAV_MASK  (0xFFFF<<0) /**< IN endpoint TxFIFO space
+                                                 available.                 */
+/** @} */
+
+/**
  * @name DOEPCTL register bit definitions.
  * @{
  */
@@ -867,21 +896,24 @@ typedef struct {
 /** @} */
 
 /**
- * @brief   OTG registers block memory address.
+ * @brief   OTG_FS registers block memory address.
  */
-#define OTG_ADDR                    0x50000000
+#define OTG_FS_ADDR                 0x50000000
 
 /**
- * @brief   Accesses to the OTG registers block.
+ * @brief   OTG_HS registers block memory address.
  */
-#define OTG                         ((stm32_otg_t *)OTG_ADDR)
+#define OTG_HS_ADDR                 0x40040000
 
 /**
- * @brief   Returns a FIFO address.
+ * @brief   Accesses to the OTG_FS registers block.
  */
-#define OTG_FIFO(n)                 ((volatile uint32_t *)(OTG_ADDR +       \
-                                                           0x1000 +         \
-                                                           (0x1000 * (n))))
+#define OTG_FS                      ((stm32_otg_t *)OTG_FS_ADDR)
+
+/**
+ * @brief   Accesses to the OTG_HS registers block.
+ */
+#define OTG_HS                      ((stm32_otg_t *)OTG_HS_ADDR)
 
 #endif /* _STM32_OTG_H_ */
 

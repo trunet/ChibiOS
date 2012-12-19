@@ -19,9 +19,10 @@
 */
 
 /**
- * @defgroup STM32F4xx_DRIVERS STM32F4xx Drivers
+ * @defgroup STM32F4xx_DRIVERS STM32F4xx/STM32F2xx Drivers
  * @details This section describes all the supported drivers on the STM32F4xx
- *          platform and the implementation details of the single drivers.
+ *          and STM32F2xx platform and the implementation details of the single
+ *          drivers.
  *
  * @ingroup platforms
  */
@@ -70,18 +71,18 @@
  */
 
 /**
- * @defgroup STM32F2xx_CAN STM32F2xx CAN Support
- * @details The STM32F2xx CAN driver uses the CAN peripherals.
+ * @defgroup STM32F4xx_CAN STM32F4xx CAN Support
+ * @details The STM32F4xx CAN driver uses the CAN peripherals.
  *
- * @section stm32f2xx_can_1 Supported HW resources
+ * @section stm32f4xx_can_1 Supported HW resources
  * - bxCAN1.
  * .
- * @section stm32f2xx_can_2 STM32F2xx CAN driver implementation features
+ * @section stm32f4xx_can_2 STM32F4xx CAN driver implementation features
  * - Clock stop for reduced power usage when the driver is in stop state.
  * - Support for bxCAN sleep mode.
  * - Programmable bxCAN interrupts priority level.
  * .
- * @ingroup STM32F2xx_DRIVERS
+ * @ingroup STM32F4xx_DRIVERS
  */
 
 /**
@@ -223,6 +224,23 @@
  */
 
 /**
+ * @defgroup STM32F4xx_SDC STM32F4xx SDC Support
+ * @details The STM32F4xx SDC driver uses the SDIO peripheral.
+ *
+ * @section stm32f4xx_sdc_1 Supported HW resources
+ * - SDIO.
+ * - DMA2.
+ * .
+ * @section stm32f4xx_sdc_2 STM32F4xx SDC driver implementation features
+ * - Clock stop for reduced power usage when the driver is in stop state.
+ * - Programmable interrupt priority.
+ * - DMA is used for receiving and transmitting.
+ * - Programmable DMA bus priority for each DMA channel.
+ * .
+ * @ingroup STM32F4xx_DRIVERS
+ */
+
+/**
  * @defgroup STM32F4xx_SERIAL STM32F4xx Serial Support
  * @details The STM32F4xx Serial driver uses the USART/UART peripherals in a
  *          buffered, interrupt driven, implementation.
@@ -322,6 +340,14 @@
  * - Automatic DMA clock stop when not in use by any driver.
  * - DMA streams and interrupt vectors sharing among multiple drivers.
  * .
+ * @ingroup STM32F4xx_PLATFORM_DRIVERS
+ */
+
+/**
+ * @defgroup STM32F4xx_ISR STM32F4xx ISR Support
+ * @details This ISR helper driver is used by the other drivers in order to
+ *          map ISR names to physical vector names.
+ *
  * @ingroup STM32F4xx_PLATFORM_DRIVERS
  */
 

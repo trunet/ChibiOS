@@ -81,6 +81,7 @@ static const USBEndpointConfig ep0config = {
   0x40,
   &ep0_state.in,
   &ep0_state.out,
+  1,
   ep0setup_buffer
 };
 
@@ -289,7 +290,6 @@ CH_IRQ_HANDLER(STM32_USB1_HP_HANDLER) {
  */
 CH_IRQ_HANDLER(STM32_USB1_LP_HANDLER) {
   uint32_t istr;
-  size_t n;
   USBDriver *usbp = &USBD1;
 
   CH_IRQ_PROLOGUE();
@@ -338,18 +338,19 @@ CH_IRQ_HANDLER(STM32_USB1_LP_HANDLER) {
 
   /* Endpoint events handling.*/
   while (istr & ISTR_CTR) {
+    size_t n;
     uint32_t ep;
     uint32_t epr = STM32_USB->EPR[ep = istr & ISTR_EP_ID_MASK];
     const USBEndpointConfig *epcp = usbp->epc[ep];
 
     if (epr & EPR_CTR_TX) {
+      size_t transmitted;
       /* IN endpoint, transmission.*/
       EPR_CLEAR_CTR_TX(ep);
 
-      n = (size_t)USB_GET_DESCRIPTOR(ep)->TXCOUNT0;
-      epcp->in_state->mode.linear.txbuf  += n;
-      epcp->in_state->txcnt              += n;
-      epcp->in_state->txsize             -= n;
+      transmitted = (size_t)USB_GET_DESCRIPTOR(ep)->TXCOUNT0;
+      epcp->in_state->txcnt  += transmitted;
+      epcp->in_state->txsize -= transmitted;
       if (epcp->in_state->txsize > 0) {
         /* Transfer not completed, there are more packets to send.*/
         if (epcp->in_state->txsize > epcp->in_maxsize)
@@ -361,10 +362,12 @@ CH_IRQ_HANDLER(STM32_USB1_LP_HANDLER) {
           usb_packet_write_from_queue(USB_GET_DESCRIPTOR(ep),
                                       epcp->in_state->mode.queue.txqueue,
                                       n);
-        else
+        else {
+          epcp->in_state->mode.linear.txbuf += transmitted;
           usb_packet_write_from_buffer(USB_GET_DESCRIPTOR(ep),
                                        epcp->in_state->mode.linear.txbuf,
                                        n);
+        }
         chSysLockFromIsr();
         usb_lld_start_in(usbp, ep);
         chSysUnlockFromIsr();
@@ -391,13 +394,13 @@ CH_IRQ_HANDLER(STM32_USB1_LP_HANDLER) {
           usb_packet_read_to_queue(udp,
                                    epcp->out_state->mode.queue.rxqueue,
                                    n);
-        else
+        else {
           usb_packet_read_to_buffer(udp,
                                     epcp->out_state->mode.linear.rxbuf,
                                     n);
-
+          epcp->out_state->mode.linear.rxbuf  += n;
+        }
         /* Transaction data updated.*/
-        epcp->out_state->mode.linear.rxbuf  += n;
         epcp->out_state->rxcnt              += n;
         epcp->out_state->rxsize             -= n;
         epcp->out_state->rxpkts             -= 1;
@@ -705,8 +708,6 @@ void usb_lld_prepare_receive(USBDriver *usbp, usbep_t ep) {
  *
  * @param[in] usbp      pointer to the @p USBDriver object
  * @param[in] ep        endpoint number
- * @param[in] buf       buffer where to fetch the data to be transmitted
- * @param[in] n         maximum number of bytes to copy
  *
  * @notapi
  */

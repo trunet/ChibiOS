@@ -44,7 +44,8 @@ typedef uint8_t         tslices_t;      /**< Thread time slices counter.    */
 typedef uint32_t        tprio_t;        /**< Thread priority.               */
 typedef int32_t         msg_t;          /**< Inter-thread message.          */
 typedef int32_t         eventid_t;      /**< Event Id.                      */
-typedef uint32_t        eventmask_t;    /**< Events mask.                   */
+typedef uint32_t        eventmask_t;    /**< Event mask.                    */
+typedef uint32_t        flagsmask_t;    /**< Event flags.                   */
 typedef uint32_t        systime_t;      /**< System time.                   */
 typedef int32_t         cnt_t;          /**< Resources counter.             */
 
@@ -61,15 +62,14 @@ typedef int32_t         cnt_t;          /**< Resources counter.             */
 
 /**
  * @brief   Packed structure modifier (within).
- * @note    It uses the "packed" GCC attribute.
+ * @note    Empty in this port.
  */
-#define PACK_STRUCT_STRUCT __attribute__((packed))
+#define PACK_STRUCT_STRUCT
 
 /**
  * @brief   Packed structure modifier (before).
- * @note    Empty in this port.
  */
-#define PACK_STRUCT_BEGIN
+#define PACK_STRUCT_BEGIN __packed
 
 /**
  * @brief   Packed structure modifier (after).

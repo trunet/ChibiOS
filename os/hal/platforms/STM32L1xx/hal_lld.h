@@ -53,7 +53,7 @@
  * @name    Platform identification
  * @{
  */
-#define PLATFORM_NAME           "STM32L1 Ultra Low Power Medium Density"
+#define PLATFORM_NAME           "STM32L1xx Ultra Low Power Medium Density"
 /** @} */
 
 /**
@@ -564,6 +564,13 @@
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
+
+/*
+ * Configuration-related checks.
+ */
+#if !defined(STM32L1xx_MCUCONF)
+#error "Using a wrong mcuconf.h file, STM32L1xx_MCUCONF not defined"
+#endif
 
 /* Voltage related limits.*/
 #if (STM32_VOS == STM32_VOS_1P8) || defined(__DOXYGEN__)

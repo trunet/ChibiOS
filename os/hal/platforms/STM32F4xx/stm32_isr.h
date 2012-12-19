@@ -19,7 +19,7 @@
 */
 
 /**
- * @file    STM3F4xx/stm32_isr.h
+ * @file    STM32F4xx/stm32_isr.h
  * @brief   ISR remapper driver header.
  *
  * @addtogroup STM32F4xx_ISR
@@ -52,7 +52,7 @@
 #define STM32_CAN1_TX_NUMBER        CAN1_TX_IRQn
 #define STM32_CAN1_RX0_NUMBER       CAN1_RX0_IRQn
 #define STM32_CAN1_RX1_NUMBER       CAN1_RX1_IRQn
-#define STM32_CAN1_SCE_NUMBER       CAN2_SCE_IRQn
+#define STM32_CAN1_SCE_NUMBER       CAN1_SCE_IRQn
 #define STM32_CAN2_TX_NUMBER        CAN2_TX_IRQn
 #define STM32_CAN2_RX0_NUMBER       CAN2_RX0_IRQn
 #define STM32_CAN2_RX1_NUMBER       CAN2_RX1_IRQn
@@ -61,11 +61,15 @@
 /*
  * OTG units.
  */
-#define STM32_OTG1_HANDLER          OTG_FS_IRQHandler
-#define STM32_OTG2_HANDLER          OTG_HS_IRQHandler
+#define STM32_OTG1_HANDLER          Vector14C
+#define STM32_OTG2_HANDLER          Vector174
+#define STM32_OTG2_EP1OUT_HANDLER   Vector168
+#define STM32_OTG2_EP1IN_HANDLER    Vector16C
 
 #define STM32_OTG1_NUMBER           OTG_FS_IRQn
 #define STM32_OTG2_NUMBER           OTG_HS_IRQn
+#define STM32_OTG2_EP1OUT_NUMBER    OTG_HS_EP1_OUT_IRQn
+#define STM32_OTG2_EP1IN_NUMBER     OTG_HS_EP1_IN_IRQn
 
 /*
  * SDIO unit.

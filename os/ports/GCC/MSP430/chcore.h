@@ -61,7 +61,7 @@
 /**
  * @brief   Name of the compiler supported by this port.
  */
-#define CH_COMPILER_NAME                "GCC "__VERSION__
+#define CH_COMPILER_NAME                "GCC " __VERSION__
 
 /**
  * @brief   Port-specific information string.
@@ -290,11 +290,21 @@ struct context {
 #define port_wait_for_interrupt()
 #endif
 
+/**
+ * @brief   Wrapper of the assembler @p _port_switch() function.
+ */
+#define port_switch(ntp, otp) _port_switch(ntp, otp)
+
+/**
+ * @brief   Wrapper of the assembler @p _port_halt() function.
+ */
+#define port_halt() _port_halt()
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void port_switch(Thread *ntp, Thread *otp);
-  void port_halt(void);
+  void _port_switch(Thread *ntp, Thread *otp);
+  void _port_halt(void);
   void _port_thread_start(void);
 #ifdef __cplusplus
 }

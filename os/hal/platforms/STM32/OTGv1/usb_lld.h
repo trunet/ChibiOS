@@ -40,7 +40,11 @@
 /**
  * @brief   Maximum endpoint address.
  */
+#if !STM32_USB_USE_OTG2 || defined(__DOXYGEN__)
 #define USB_MAX_ENDPOINTS                   3
+#else
+#define USB_MAX_ENDPOINTS                   5
+#endif
 
 /**
  * @brief   The address can be changed immediately upon packet reception.
@@ -53,11 +57,20 @@
 
 /**
  * @brief   OTG1 driver enable switch.
- * @details If set to @p TRUE the support for USB1 is included.
+ * @details If set to @p TRUE the support for OTG_FS is included.
  * @note    The default is @p TRUE.
  */
 #if !defined(STM32_USB_USE_OTG1) || defined(__DOXYGEN__)
-#define STM32_USB_USE_OTG1                  TRUE
+#define STM32_USB_USE_OTG1                  FALSE
+#endif
+
+/**
+ * @brief   OTG2 driver enable switch.
+ * @details If set to @p TRUE the support for OTG_HS is included.
+ * @note    The default is @p TRUE.
+ */
+#if !defined(STM32_USB_USE_OTG2) || defined(__DOXYGEN__)
+#define STM32_USB_USE_OTG2                  FALSE
 #endif
 
 /**
@@ -68,11 +81,59 @@
 #endif
 
 /**
+ * @brief   OTG2 interrupt priority level setting.
+ */
+#if !defined(STM32_USB_OTG2_IRQ_PRIORITY) || defined(__DOXYGEN__)
+#define STM32_USB_OTG2_IRQ_PRIORITY         14
+#endif
+
+/**
  * @brief   OTG1 RX shared FIFO size.
  * @note    Must be a multiple of 4.
  */
 #if !defined(STM32_USB_OTG1_RX_FIFO_SIZE) || defined(__DOXYGEN__)
 #define STM32_USB_OTG1_RX_FIFO_SIZE         512
+#endif
+
+/**
+ * @brief   OTG2 RX shared FIFO size.
+ * @note    Must be a multiple of 4.
+ */
+#if !defined(STM32_USB_OTG2_RX_FIFO_SIZE) || defined(__DOXYGEN__)
+#define STM32_USB_OTG2_RX_FIFO_SIZE         1024
+#endif
+
+/**
+ * @brief   Dedicated data pump threads priority.
+ */
+#if !defined(STM32_USB_OTG_THREAD_PRIORITY) || defined(__DOXYGEN__)
+#define STM32_USB_OTG_THREAD_PRIO           LOWPRIO
+#endif
+
+/**
+ * @brief   Dedicated data pump threads stack size.
+ */
+#if !defined(STM32_USB_OTG_THREAD_STACK_SIZE) || defined(__DOXYGEN__)
+#define STM32_USB_OTG_THREAD_STACK_SIZE     128
+#endif
+
+/**
+ * @brief   Exception priority level during TXFIFOs operations.
+ * @note    Because an undocumented silicon behavior the operation of
+ *          copying a packet into a TXFIFO must not be interrupted by
+ *          any other operation on the OTG peripheral.
+ *          This parameter represents the priority mask during copy
+ *          operations. The default value only allows to call USB
+ *          functions from callbacks invoked from USB ISR handlers.
+ *          If you need to invoke USB functions from other handlers
+ *          then raise this priority mast to the same level of the
+ *          handler you need to use.
+ * @note    The value zero means disabled, when disabled calling USB
+ *          functions is only safe from thread level or from USB
+ *          callbacks.
+ */
+#if !defined(STM32_USB_OTGFIFO_FILL_BASEPRI) || defined(__DOXYGEN__)
+#define STM32_USB_OTGFIFO_FILL_BASEPRI      0
 #endif
 
 /*===========================================================================*/
@@ -83,7 +144,11 @@
 #error "OTG1 not present in the selected device"
 #endif
 
-#if !STM32_USB_USE_OTG1
+#if STM32_USB_USE_OTG2 && !STM32_HAS_OTG2
+#error "OTG2 not present in the selected device"
+#endif
+
+#if !STM32_USB_USE_OTG1 && !STM32_USB_USE_OTG2
 #error "USB driver activated but no USB peripheral assigned"
 #endif
 
@@ -92,8 +157,17 @@
 #error "Invalid IRQ priority assigned to OTG1"
 #endif
 
+#if STM32_USB_USE_OTG2 &&                                                \
+    !CORTEX_IS_VALID_KERNEL_PRIORITY(STM32_USB_OTG2_IRQ_PRIORITY)
+#error "Invalid IRQ priority assigned to OTG2"
+#endif
+
 #if (STM32_USB_OTG1_RX_FIFO_SIZE & 3) != 0
-#error "RX FIFO size must be a multiple of 4"
+#error "OTG1 RX FIFO size must be a multiple of 4"
+#endif
+
+#if (STM32_USB_OTG2_RX_FIFO_SIZE & 3) != 0
+#error "OTG2 RX FIFO size must be a multiple of 4"
 #endif
 
 #if defined(STM32F4XX) || defined(STM32F2XX)
@@ -111,6 +185,15 @@
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
+
+/**
+ * @brief   Peripheral-specific parameters block.
+ */
+typedef struct {
+  uint32_t                      rx_fifo_size;
+  uint32_t                      otg_ram_size;
+  uint32_t                      num_endpoints;
+} stm32_otg_params_t;
 
 /**
  * @brief   Type of an IN endpoint state structure.
@@ -232,6 +315,12 @@ typedef struct {
   USBOutEndpointState           *out_state;
   /* End of the mandatory fields.*/
   /**
+   * @brief   Determines the space allocated for the TXFIFO as multiples of
+   *          the packet size (@p in_maxsize). Note that zero is interpreted
+   *          as one for simplicity and robustness.
+   */
+  uint16_t                      in_multiplier;
+  /**
    * @brief   Pointer to a buffer for setup packets.
    * @details Setup packets require a dedicated 8-bytes buffer, set this
    *          field to @p NULL for non-control endpoints.
@@ -332,9 +421,33 @@ struct USBDriver {
 #endif
   /* End of the mandatory fields.*/
   /**
+   * @brief   Pointer to the OTG peripheral associated to this driver.
+   */
+  stm32_otg_t                   *otg;
+  /**
+   * @brief   Peripheral-specific parameters.
+   */
+  const stm32_otg_params_t      *otgparams;
+  /**
    * @brief   Pointer to the next address in the packet memory.
    */
   uint32_t                      pmnext;
+  /**
+   * @brief   Mask of TXFIFOs to be filled by the pump thread.
+   */
+  uint32_t                      txpending;
+  /**
+   * @brief   Pointer to the thread.
+   */
+  Thread                        *thd_ptr;
+  /**
+   * @brief   Pointer to the thread when it is sleeping or @p NULL.
+   */
+  Thread                        *thd_wait;
+  /**
+   * @brief   Working area for the dedicated data pump thread;
+   */
+  WORKING_AREA(wa_pump, STM32_USB_OTG_THREAD_STACK_SIZE);
 };
 
 /*===========================================================================*/
@@ -363,14 +476,14 @@ struct USBDriver {
  *
  * @api
  */
-#define usb_lld_connect_bus(usbp) (OTG->GCCFG |= GCCFG_VBUSBSEN)
+#define usb_lld_connect_bus(usbp) (usbp->otg->GCCFG |= GCCFG_VBUSBSEN)
 
 /**
  * @brief   Disconnect the USB device.
  *
  * @api
  */
-#define usb_lld_disconnect_bus(usbp) (OTG->GCCFG &= ~GCCFG_VBUSBSEN)
+#define usb_lld_disconnect_bus(usbp) (usbp->otg->GCCFG &= ~GCCFG_VBUSBSEN)
 
 /*===========================================================================*/
 /* External declarations.                                                    */
@@ -378,6 +491,10 @@ struct USBDriver {
 
 #if STM32_USB_USE_OTG1 && !defined(__DOXYGEN__)
 extern USBDriver USBD1;
+#endif
+
+#if STM32_USB_USE_OTG2 && !defined(__DOXYGEN__)
+extern USBDriver USBD2;
 #endif
 
 #ifdef __cplusplus
