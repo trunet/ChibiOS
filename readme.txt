@@ -79,6 +79,7 @@
 *****************************************************************************
 
 *** 2.4.3 ***
+- FIX: Fixed warning in STM32 ICU driver using IAR compiler (bug 3598177).
 - FIX: Fixed typo in chOQGetEmptyI() macro (bug 3595910).
 - FIX: Fixed possible false detect of loaded prescaler in RTCv1 driver (bug 
   3595489).
@@ -125,9 +126,11 @@
 - FIX: Fixed packed structures macros not functional in IAR and RVCT port
   (bug 3561279).
 - FIX: Fixed Problem in FatFs demos related to LFN (bug 3560980).
+- NEW: Added memory signature record to the registry in order to simplify
+  the implementation of ad-hoc debuggers.
 - NEW: I2C workaround allowing to read single byte on all STM32 platforms 
   except STM32F1xx.
-- NEW: Small andjustment in chcore.h files under ./os/ports/GCC required by a
+- NEW: Small adjustment in chcore.h files under ./os/ports/GCC required by a
   difference in GCC 4.7.x.
 
 *** 2.4.2 ***
