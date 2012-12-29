@@ -82,6 +82,19 @@
 *****************************************************************************
 
 *** 2.5.2 ***
+- FIX: Fixed wrong condition in checksum offload of STM32 MAC driver (bug
+  3598720)(backported to 2.4.4).
+- FIX: Fixed error in STM32 MAC driver degrades performance (bug 3598719)
+  (backported to 2.4.4).
+- FIX: Fixed warning in STM32 ICU driver using IAR compiler (bug 3598177)
+  (backported to 2.4.3).
+- FIX: Fixed wrong SPI path in platform_f105_f107.mk (bug 3598151).
+- FIX: Fixed PHY powerdown issues not fixed (bug 3596911).
+- NEW: Added zero-copy capability to the STM32 MAC driver (experimental and
+  not tested yet).
+- NEW: Added an optional zero-copy mode API to the MAC driver model.
+- NEW: Added EXT driver to the STM32F3xx platform.
+- NEW: Improved the STM32 EXT driver to support more than 32 channels.
 - NEW: Added support for Olimex board STM32-LCD.
 
 *** 2.5.1 ***
