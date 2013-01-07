@@ -84,16 +84,13 @@
 /** @} */
 
 /**
- * @name    Threashold register initializer
- * @{
- */
-#define ADC_TR(low, high)       (((uint32_t)(high) << 16) | (uint32_t)(low))
-/** @} */
-
-/**
  * @name    CFGR register configuration helpers
  * @{
  */
+#define ADC_CFGR_DMACFG_MASK            (1 << 1)
+#define ADC_CFGR_DMACFG_ONESHOT         (0 << 1)
+#define ADC_CFGR_DMACFG_CIRCULAR        (1 << 1)
+
 #define ADC_CFGR_RES_MASK               (3 << 3)
 #define ADC_CFGR_RES_12BITS             (0 << 3)
 #define ADC_CFGR_RES_10BITS             (1 << 3)
@@ -138,7 +135,7 @@
 #define ADC_CCR_DMACFG_CIRCULAR         (1 << 13)
 #define ADC_CCR_MDMA_MASK               (3 << 14)
 #define ADC_CCR_MDMA_DISABLED           (0 << 14)
-#define ADC_CCR_MDMA_WORD               (1 << 14)
+#define ADC_CCR_MDMA_WORD               (2 << 14)
 #define ADC_CCR_MDMA_HWORD              (3 << 14)
 #define ADC_CCR_CKMODE_MASK             (3 << 16)
 #define ADC_CCR_CKMODE_ADCCK            (0 << 16)
@@ -412,13 +409,20 @@ typedef struct {
   /* End of the mandatory fields.*/
   /**
    * @brief   ADC CFGR register initialization data.
-   * @note    The bits DMAEN, DMACFG, OVRMOD, CONT are enforced internally to the driver.
+   * @note    The bits DMAEN, DMACFG, OVRMOD, CONT are enforced internally
+   *          to the driver, keep them to zero.
    */
   uint32_t                  cfgr;
   /**
    * @brief   ADC TR1 register initialization data.
    */
   uint32_t                  tr1;
+  /**
+   * @brief   ADC CCR register initialization data.
+   * @note    The bits CKMODE, MDMA, DMACFG are enforced internally to the
+   *          driver, keep them to zero.
+   */
+  uint32_t                  ccr;
   /**
    * @brief   ADC SMPRx registers initialization data.
    */
@@ -436,10 +440,6 @@ typedef struct {
    * @brief   Slave ADC SQRx register initialization data.
    */
   uint32_t                  ssqr[4];
-  /**
-   * @brief   ADC CCR register initialization data.
-   */
-  uint32_t                  ccr;
 #endif /* STM32_ADC_DUAL_MODE */
 } ADCConversionGroup;
 
@@ -496,6 +496,10 @@ struct ADCDriver {
 #endif
   /* End of the mandatory fields.*/
   /**
+   * @brief   Pointer to the common ADCx_y registers block.
+   */
+  ADC_Common_TypeDef        *adcc;
+  /**
    * @brief   Pointer to the master ADCx registers block.
    */
   ADC_TypeDef               *adcm;
@@ -518,6 +522,13 @@ struct ADCDriver {
 /*===========================================================================*/
 /* Driver macros.                                                            */
 /*===========================================================================*/
+
+/**
+ * @name    Threashold register initializer
+ * @{
+ */
+#define ADC_TR(low, high)       (((uint32_t)(high) << 16) | (uint32_t)(low))
+/** @} */
 
 /**
  * @name    Sequences building helper macros
