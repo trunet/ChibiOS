@@ -89,6 +89,7 @@ ADCDriver ADCD3;
  */
 static void adc_lld_vreg_on(ADCDriver *adcp) {
 
+  adcp->adcm->CR = 0;   /* RM 12.4.3.*/
   adcp->adcm->CR = ADC_CR_ADVREGEN_0;
 #if STM32_ADC_DUAL_MODE
   adcp->adcs->CR = ADC_CR_ADVREGEN_0;
@@ -103,6 +104,7 @@ static void adc_lld_vreg_on(ADCDriver *adcp) {
  */
 static void adc_lld_vreg_off(ADCDriver *adcp) {
 
+  adcp->adcm->CR = 0;   /* RM 12.4.3.*/
   adcp->adcm->CR = ADC_CR_ADVREGEN_1;
 #if STM32_ADC_DUAL_MODE
   adcp->adcs->CR = ADC_CR_ADVREGEN_1;
@@ -116,11 +118,11 @@ static void adc_lld_vreg_off(ADCDriver *adcp) {
  */
 static void adc_lld_analog_on(ADCDriver *adcp) {
 
-  adcp->adcm->CR = ADC_CR_ADEN;
+  adcp->adcm->CR |= ADC_CR_ADEN;
   while ((adcp->adcm->ISR & ADC_ISR_ADRDY) == 0)
     ;
 #if STM32_ADC_DUAL_MODE
-  adcp->adcs->CR = ADC_CR_ADEN;
+  adcp->adcs->CR |= ADC_CR_ADEN;
   while ((adcp->adcs->ISR & ADC_ISR_ADRDY) == 0)
     ;
 #endif
@@ -133,11 +135,11 @@ static void adc_lld_analog_on(ADCDriver *adcp) {
  */
 static void adc_lld_analog_off(ADCDriver *adcp) {
 
-  adcp->adcm->CR = ADC_CR_ADDIS;
+  adcp->adcm->CR |= ADC_CR_ADDIS;
   while ((adcp->adcm->CR & ADC_CR_ADDIS) != 0)
     ;
 #if STM32_ADC_DUAL_MODE
-  adcp->adcs->CR = ADC_CR_ADDIS;
+  adcp->adcs->CR |= ADC_CR_ADDIS;
   while ((adcp->adcs->CR & ADC_CR_ADDIS) != 0)
     ;
 #endif
@@ -150,14 +152,14 @@ static void adc_lld_analog_off(ADCDriver *adcp) {
  */
 static void adc_lld_calibrate(ADCDriver *adcp) {
 
-  chDbgAssert(adcp->adcm->CR == 0, "adc_lld_calibrate(), #1",
-                                   "invalid register state");
+  chDbgAssert(adcp->adcm->CR == ADC_CR_ADVREGEN_0, "adc_lld_calibrate(), #1",
+                                                   "invalid register state");
   adcp->adcm->CR |= ADC_CR_ADCAL;
   while ((adcp->adcm->CR & ADC_CR_ADCAL) != 0)
     ;
 #if STM32_ADC_DUAL_MODE
-  chDbgAssert(adcp->adcs->CR == 0, "adc_lld_calibrate(), #2",
-                                   "invalid register state");
+  chDbgAssert(adcp->adcs->CR == ADC_CR_ADVREGEN_0, "adc_lld_calibrate(), #2",
+                                                   "invalid register state");
   adcp->adcs->CR |= ADC_CR_ADCAL;
   while ((adcp->adcs->CR & ADC_CR_ADCAL) != 0)
     ;
@@ -327,6 +329,7 @@ void adc_lld_init(void) {
 #if STM32_ADC_USE_ADC1
   /* Driver initialization.*/
   adcObjectInit(&ADCD1);
+  ADCD1.adcc = ADC1_2;
   ADCD1.adcm = ADC1;
 #if STM32_ADC_DUAL_MODE
   ADCD1.adcs = ADC2;
@@ -344,6 +347,7 @@ void adc_lld_init(void) {
 #if STM32_ADC_USE_ADC3
   /* Driver initialization.*/
   adcObjectInit(&ADCD1);
+  ADCD3.adcc = ADC3_4;
   ADCD3.adcm = ADC3;
 #if STM32_ADC_DUAL_MODE
   ADCD3.adcs = ADC4;
@@ -382,15 +386,7 @@ void adc_lld_start(ADCDriver *adcp) {
                             (stm32_dmaisr_t)adc_lld_serve_dma_interrupt,
                             (void *)adcp);
       chDbgAssert(!b, "adc_lld_start(), #1", "stream already allocated");
-#if STM32_ADC_DUAL_MODE
-      dmaStreamSetPeripheral(adcp->dmastp, &ADC1_2->CDR);
-#else
-      dmaStreamSetPeripheral(adcp->dmastp, &ADC1->DR);
-#endif
       rccEnableADC12(FALSE);
-
-      /* Clock source setting.*/
-      ADC1_2->CCR = ADC_CCR_CKMODE_AHB_DIV1;
     }
 #endif /* STM32_ADC_USE_ADC1 */
 
@@ -402,17 +398,19 @@ void adc_lld_start(ADCDriver *adcp) {
                             (stm32_dmaisr_t)adc_lld_serve_dma_interrupt,
                             (void *)adcp);
       chDbgAssert(!b, "adc_lld_start(), #2", "stream already allocated");
-#if STM32_ADC_DUAL_MODE
-      dmaStreamSetPeripheral(adcp->dmastp, &ADC3_4->CDR);
-#else
-      dmaStreamSetPeripheral(adcp->dmastp, &ADC3->DR);
-#endif
       rccEnableADC34(FALSE);
-
-      /* Clock source setting.*/
-      ADC3_4->CCR = ADC_CCR_CKMODE_AHB_DIV1;
     }
 #endif /* STM32_ADC_USE_ADC2 */
+
+    /* Setting DMA peripheral-side pointer.*/
+#if STM32_ADC_DUAL_MODE
+      dmaStreamSetPeripheral(adcp->dmastp, &adcp->adcc->CDR);
+#else
+      dmaStreamSetPeripheral(adcp->dmastp, &adcp->adcm->DR);
+#endif
+
+    /* Clock source setting.*/
+    adcp->adcc->CCR = STM32_ADC_ADC12_CLOCK_MODE | ADC_DMA_MDMA;
 
     /* Master ADC calibration.*/
     adc_lld_vreg_on(adcp);
@@ -465,68 +463,82 @@ void adc_lld_stop(ADCDriver *adcp) {
  * @notapi
  */
 void adc_lld_start_conversion(ADCDriver *adcp) {
-  uint32_t mode;
+  uint32_t dmamode, ccr, cfgr;
   const ADCConversionGroup *grpp = adcp->grpp;
 
   chDbgAssert(!STM32_ADC_DUAL_MODE || ((grpp->num_channels & 1) == 0),
               "adc_lld_start_conversion(), #1",
               "odd number of channels in dual mode");
 
-  /* DMA setup.*/
-  mode = adcp->dmamode;
+  /* Calculating control registers values.*/
+  dmamode = adcp->dmamode;
+  ccr     = grpp->ccr | (adcp->adcc->CCR & (ADC_CCR_CKMODE_MASK |
+                                            ADC_CCR_MDMA_MASK));
+  cfgr    = grpp->cfgr | ADC_CFGR_CONT | ADC_CFGR_DMAEN;
   if (grpp->circular) {
-    mode |= STM32_DMA_CR_CIRC;
+    dmamode |= STM32_DMA_CR_CIRC;
+#if STM32_ADC_DUAL_MODE
+    ccr  |= ADC_CCR_DMACFG_CIRCULAR;
+#else
+    cfgr |= ADC_CFGR_DMACFG_CIRCULAR;
+#endif
   }
+
+  /* DMA setup.*/
   if (adcp->depth > 1) {
     /* If the buffer depth is greater than one then the half transfer interrupt
        interrupt is enabled in order to allows streaming processing.*/
-    mode |= STM32_DMA_CR_HTIE;
+    dmamode |= STM32_DMA_CR_HTIE;
   }
   dmaStreamSetMemory0(adcp->dmastp, adcp->samples);
-  dmaStreamSetTransactionSize(adcp->dmastp, (uint32_t)grpp->num_channels *
+#if STM32_ADC_DUAL_MODE
+  dmaStreamSetTransactionSize(adcp->dmastp, ((uint32_t)grpp->num_channels/2) *
                                             (uint32_t)adcp->depth);
-  dmaStreamSetMode(adcp->dmastp, mode);
+#else
+    dmaStreamSetTransactionSize(adcp->dmastp, (uint32_t)grpp->num_channels *
+                                              (uint32_t)adcp->depth);
+#endif
+  dmaStreamSetMode(adcp->dmastp, dmamode);
   dmaStreamEnable(adcp->dmastp);
+
+  /* Configuring the CCR register with the static settings ORed with
+     the user-specified settings in the conversion group configuration
+     structure.*/
+  adcp->adcc->CCR   = ccr;
 
   /* ADC setup, if it is defined a callback for the analog watch dog then it
      is enabled.*/
-  adcp->adcm->ISR    = adcp->adcm->ISR;
-  adcp->adcm->IER    = ADC_IER_OVR | ADC_IER_AWD1;
-  adcp->adcm->TR1    = grpp->tr1;
+  adcp->adcm->ISR   = adcp->adcm->ISR;
+  adcp->adcm->IER   = ADC_IER_OVR | ADC_IER_AWD1;
+  adcp->adcm->TR1   = grpp->tr1;
 #if STM32_ADC_DUAL_MODE
-  adcp->adcm->SMPR1  = grpp->smpr[0];
-  adcp->adcm->SMPR2  = grpp->smpr[1];
-  adcp->adcm->SQR1   = grpp->sqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels / 2);
-  adcp->adcm->SQR2   = grpp->sqr[1];
-  adcp->adcm->SQR3   = grpp->sqr[2];
-  adcp->adcm->SQR4   = grpp->sqr[3];
-  adcp->adcs->SMPR1  = grpp->ssmpr[0];
-  adcp->adcs->SMPR2  = grpp->ssmpr[1];
-  adcp->adcs->SQR1   = grpp->ssqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels / 2);
-  adcp->adcs->SQR2   = grpp->ssqr[1];
-  adcp->adcs->SQR3   = grpp->ssqr[2];
-  adcp->adcs->SQR4   = grpp->ssqr[3];
+  adcp->adcm->SMPR1 = grpp->smpr[0];
+  adcp->adcm->SMPR2 = grpp->smpr[1];
+  adcp->adcm->SQR1  = grpp->sqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels / 2);
+  adcp->adcm->SQR2  = grpp->sqr[1];
+  adcp->adcm->SQR3  = grpp->sqr[2];
+  adcp->adcm->SQR4  = grpp->sqr[3];
+  adcp->adcs->SMPR1 = grpp->ssmpr[0];
+  adcp->adcs->SMPR2 = grpp->ssmpr[1];
+  adcp->adcs->SQR1  = grpp->ssqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels / 2);
+  adcp->adcs->SQR2  = grpp->ssqr[1];
+  adcp->adcs->SQR3  = grpp->ssqr[2];
+  adcp->adcs->SQR4  = grpp->ssqr[3];
 
-  /* ADC configuration, note some bits are shared between master and slave,
-     here we write everything in the slave too for code simplicity not
-     because it is required.*/
-  adcp->adcm->CFGR   = adcp->adcs->CFGR = grpp->cfgr | ADC_CFGR_CONT;
-
-#else
-  adcp->adcm->SMPR1  = grpp->smpr[0];
-  adcp->adcm->SMPR2  = grpp->smpr[1];
-  adcp->adcm->SQR1   = grpp->sqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels);
-  adcp->adcm->SQR2   = grpp->sqr[1];
-  adcp->adcm->SQR3   = grpp->sqr[2];
-  adcp->adcm->SQR4   = grpp->sqr[3];
+#else /* !STM32_ADC_DUAL_MODE */
+  adcp->adcm->SMPR1 = grpp->smpr[0];
+  adcp->adcm->SMPR2 = grpp->smpr[1];
+  adcp->adcm->SQR1  = grpp->sqr[0] | ADC_SQR1_NUM_CH(grpp->num_channels);
+  adcp->adcm->SQR2  = grpp->sqr[1];
+  adcp->adcm->SQR3  = grpp->sqr[2];
+  adcp->adcm->SQR4  = grpp->sqr[3];
+#endif /* !STM32_ADC_DUAL_MODE */
 
   /* ADC configuration.*/
-  adcp->adcm->CFGR   = grpp->cfgr | ADC_CFGR_CONT  | ADC_CFGR_DMACFG |
-                                    ADC_CFGR_DMAEN;
-#endif
+  adcp->adcm->CFGR  = cfgr;
 
   /* Starting conversion.*/
-  adcp->adcm->CR    |= ADC_CR_ADSTART;
+  adcp->adcm->CR   |= ADC_CR_ADSTART;
 }
 
 /**

@@ -21,7 +21,7 @@
 #include "ch.h"
 #include "hal.h"
 
-#define ADC_GRP1_NUM_CHANNELS   1
+#define ADC_GRP1_NUM_CHANNELS   2
 #define ADC_GRP1_BUF_DEPTH      8
 
 #define ADC_GRP2_NUM_CHANNELS   8
@@ -53,43 +53,56 @@ static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
 
 /*
  * ADC conversion group.
- * Mode:        Linear buffer, 8 samples of 1 channel, SW triggered.
- * Channels:    IN11.
+ * Mode:        Linear buffer, 8 samples of 2 channels, SW triggered.
+ * Channels:    IN7, IN8.
  */
 static const ADCConversionGroup adcgrpcfg1 = {
   FALSE,
   ADC_GRP1_NUM_CHANNELS,
   NULL,
   adcerrorcallback,
-  0,                        /* CR1 */
-  ADC_CR2_SWSTART,          /* CR2 */
-  ADC_SMPR1_SMP_AN11(ADC_SAMPLE_3),
-  0,                        /* SMPR2 */
-  ADC_SQR1_NUM_CH(ADC_GRP1_NUM_CHANNELS),
-  0,                        /* SQR2 */
-  ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
+  0,                        /* CFGR    */
+  ADC_TR(0, 4095),          /* TR1     */
+  0,                        /* CCR     */
+  {                         /* SMPR[2] */
+    0,
+    0
+  },
+  {                         /* SQR[4]  */
+    ADC_SQR1_SQ1_N(ADC_CHANNEL_IN7) | ADC_SQR1_SQ2_N(ADC_CHANNEL_IN8),
+    0,
+    0,
+    0
+  }
 };
 
 /*
  * ADC conversion group.
  * Mode:        Continuous, 16 samples of 8 channels, SW triggered.
- * Channels:    IN11, IN12, IN11, IN12, IN11, IN12, Sensor, VRef.
+ * Channels:    IN7, IN8, IN7, IN8, IN7, IN8, Sensor, VBat/2.
  */
 static const ADCConversionGroup adcgrpcfg2 = {
   TRUE,
   ADC_GRP2_NUM_CHANNELS,
   adccallback,
   adcerrorcallback,
-  0,                        /* CR1 */
-  ADC_CR2_SWSTART,          /* CR2 */
-  ADC_SMPR1_SMP_AN12(ADC_SAMPLE_56) | ADC_SMPR1_SMP_AN11(ADC_SAMPLE_56) |
-  ADC_SMPR1_SMP_SENSOR(ADC_SAMPLE_144) | ADC_SMPR1_SMP_VREF(ADC_SAMPLE_144),
-  0,                        /* SMPR2 */
-  ADC_SQR1_NUM_CH(ADC_GRP2_NUM_CHANNELS),
-  ADC_SQR2_SQ8_N(ADC_CHANNEL_SENSOR) | ADC_SQR2_SQ7_N(ADC_CHANNEL_VREFINT),
-  ADC_SQR3_SQ6_N(ADC_CHANNEL_IN12)   | ADC_SQR3_SQ5_N(ADC_CHANNEL_IN11) |
-  ADC_SQR3_SQ4_N(ADC_CHANNEL_IN12)   | ADC_SQR3_SQ3_N(ADC_CHANNEL_IN11) |
-  ADC_SQR3_SQ2_N(ADC_CHANNEL_IN12)   | ADC_SQR3_SQ1_N(ADC_CHANNEL_IN11)
+  0,                                /* CFGR    */
+  ADC_TR(0, 4095),                  /* TR1     */
+  ADC_CCR_TSEN | ADC_CCR_VBATEN,    /* CCR     */
+  {                                 /* SMPR[2] */
+    ADC_SMPR1_SMP_AN7(ADC_SMPR_SMP_19P5)
+    | ADC_SMPR1_SMP_AN8(ADC_SMPR_SMP_19P5),
+    ADC_SMPR2_SMP_AN16(ADC_SMPR_SMP_61P5)
+    | ADC_SMPR2_SMP_AN17(ADC_SMPR_SMP_61P5),
+  },
+  {                                 /* SQR[4]  */
+    ADC_SQR1_SQ1_N(ADC_CHANNEL_IN7)  | ADC_SQR1_SQ2_N(ADC_CHANNEL_IN8) |
+    ADC_SQR1_SQ3_N(ADC_CHANNEL_IN7)  | ADC_SQR1_SQ4_N(ADC_CHANNEL_IN8),
+    ADC_SQR2_SQ5_N(ADC_CHANNEL_IN7)  | ADC_SQR2_SQ6_N(ADC_CHANNEL_IN8) |
+    ADC_SQR2_SQ7_N(ADC_CHANNEL_IN16) | ADC_SQR2_SQ8_N(ADC_CHANNEL_IN17),
+    0,
+    0
+  }
 };
 
 /*
@@ -101,11 +114,12 @@ static msg_t Thread1(void *arg) {
   (void)arg;
   chRegSetThreadName("blinker");
   while (TRUE) {
-    palSetPad(GPIOD, GPIOD_LED5);
+    palSetPad(GPIOE, GPIOE_LED10_RED);
     chThdSleepMilliseconds(500);
-    palClearPad(GPIOD, GPIOD_LED5);
+    palClearPad(GPIOE, GPIOE_LED10_RED);
     chThdSleepMilliseconds(500);
   }
+  return 0;
 }
 
 /*
@@ -135,10 +149,9 @@ int main(void) {
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
 
   /*
-   * Activates the ADC1 driver and the thermal sensor.
+   * Activates the ADC1 driver and the temperature sensor.
    */
   adcStart(&ADCD1, NULL);
-  adcSTM32EnableTSVREFE();
 
   /*
    * Linear conversion.
@@ -157,7 +170,6 @@ int main(void) {
   while (TRUE) {
     if (palReadPad(GPIOA, GPIOA_BUTTON)) {
       adcStopConversion(&ADCD1);
-      adcSTM32DisableTSVREFE();
     }
     chThdSleepMilliseconds(500);
   }

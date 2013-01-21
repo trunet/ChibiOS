@@ -82,6 +82,8 @@
 *****************************************************************************
 
 *** 2.5.2 ***
+- FIX: Fixed small bug in shell argument parsing code in shell_thread (bug
+  3599328)(backported to 2.4.4).
 - FIX: Fixed wrong condition in checksum offload of STM32 MAC driver (bug
   3598720)(backported to 2.4.4).
 - FIX: Fixed error in STM32 MAC driver degrades performance (bug 3598719)
@@ -90,6 +92,17 @@
   (backported to 2.4.3).
 - FIX: Fixed wrong SPI path in platform_f105_f107.mk (bug 3598151).
 - FIX: Fixed PHY powerdown issues not fixed (bug 3596911).
+- NEW: Added an abstract file system interface written in C++, no
+  implementations yet.
+  TODO: Create a descendant interface for hyerarchical file systems.
+  TODO: Create a FatFS wrapper implementing the interface and using a server
+  thread for synchronization.
+  TODO: Create an implementation over a read-only file system in code space.
+- NEW: Added new C++ demo for the STM32F4-Discovery.
+- NEW: Updated C++ wrapper with a much more logical classes structure.
+       TODO: Opdate older C++ demos.
+- NEW: ADC driver implementation for the STM32F3xx, the driver supports also
+  the dual-ADC mode allowing for a very high combined bandwidth.
 - NEW: Added zero-copy capability to the STM32 MAC driver (experimental and
   not tested yet).
 - NEW: Added an optional zero-copy mode API to the MAC driver model.
